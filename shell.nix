@@ -7,11 +7,14 @@ in
     buildInputs = with pkgs;
       [
         gcc
+        rustup
+        rustfmt
         cargo
         cargo-watch
       ]
       ++ [alias-run alias-dev alias-test];
     shellHook = ''
+      rustup default nightly
       printf "\e[33m
         \e[1mr\e[0m\e[33m  -> run
         \e[1md\e[0m\e[33m  -> dev
