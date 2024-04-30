@@ -12,6 +12,8 @@ in
         rustfmt
         cargo
         cargo-watch
+        openssl
+        pkg-config
       ]
       ++ [alias-run alias-dev alias-test alias-browser];
     shellHook = ''
