@@ -1,12 +1,12 @@
 use eyre::{Ok, Result};
-use std::fs;
-use std::path::PathBuf;
-use axum::routing::Router;
-use tower_http::services::ServeDir;
-use axum::extract::Json;
-use axum::http::StatusCode;
-use axum::routing::get;
-use axum::extract::Path;
+use std::{fs, net::SocketAddr, path::PathBuf};
+use axum::{extract::{Json, Path}, http::StatusCode, routing::{get, Router}};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tower_http::{services::ServeDir, trace::{DefaultMakeSpan, TraceLayer}};
+
+mod ws;
+
+use ws::ws_handler;
 
 const ROOT_PATH: &str = "../testdir";
 
@@ -45,15 +45,26 @@ async fn main() {
     let root_path = PathBuf::from(ROOT_PATH);
     let files = get_files(&root_path).unwrap();
 
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "example_websockets=debug,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     let app = Router::new()
         .route("/paths", get(get_abs_paths))
         .route("/paths/:path", get(get_paths))
-        .nest_service("/data", ServeDir::new(&root_path.clone()));
+        .nest_service("/data", ServeDir::new(&root_path.clone()))
+        .route("/:file", get(ws_handler))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::default().include_headers(true)),
+        );
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:5060").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
 
     dbg!(files);
 }
