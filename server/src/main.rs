@@ -5,9 +5,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use clap::Parser;
 
-mod ws;
+mod stream_file;
 
-use ws::ws_handler;
+use stream_file::stream_file_handler;
 
 fn get_files(path: &PathBuf) -> Result<Vec<PathBuf>> {
     let files = fs::read_dir(path)?
@@ -70,7 +70,7 @@ async fn main() {
             let root_path = root_path.clone();
             move |path| get_paths(root_path.clone(), path)
         }))
-        .route("/:file", get(ws_handler))
+        .route("/:file", get(stream_file_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
