@@ -36,6 +36,8 @@ async fn main() {
 
     let fl = recieve_file::get_missing_local_files(&root_path).await;
     println!("{:?}", fl);
+    let r = recieve_file::get_file(&root_path, "test1.txt").await;
+    println!("{:?}", r);
 
     let state = AppState { root_path };
 
@@ -49,7 +51,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/paths", get(get_paths))
-        .route("/:path", get(stream_file_handler))
+        .route("/get/:path", get(stream_file_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
