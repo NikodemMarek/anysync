@@ -1,20 +1,23 @@
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path, Query},
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path, Query, State},
     response::IntoResponse,
 };
-use std::{borrow::Cow, collections::HashMap, fs::File, io::Write, path::PathBuf};
+use std::{borrow::Cow, collections::HashMap, fs::File, io::Write};
 use axum::extract::ws::CloseFrame;
 use futures::{sink::SinkExt, stream::StreamExt};
 use eyre::Result;
 use std::io::Read;
 
+use crate::AppState;
+
 pub async fn stream_file_handler(
+    State(AppState { root_path }): State<AppState>,
     ws: WebSocketUpgrade,
 
-    Path(file): Path<String>,
+    Path(path): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
-    let file = PathBuf::from(format!("../testdir/{}", file));
+    let file = root_path.join(path);
     let chunk_size = params.get("chunk_size").and_then(|s| s.parse().ok()).unwrap_or(0x4000);
 
     if let Ok(file) = std::fs::File::open(file) {
