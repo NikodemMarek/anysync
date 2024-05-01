@@ -4,11 +4,12 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use clap::Parser;
 
-mod stream_file;
-mod recieve_file;
+mod send_file;
+mod get_file;
 mod paths;
+mod file_stream;
 
-use stream_file::stream_file_handler;
+use send_file::send_file_handler;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -34,9 +35,9 @@ async fn get_paths(State(AppState { root_path }): State<AppState>) -> (StatusCod
 async fn main() {
     let Args { root_path, port } = Args::parse();
 
-    let fl = recieve_file::get_missing_local_files(&root_path).await;
+    let fl = get_file::get_missing_local_files(&root_path).await;
     println!("{:?}", fl);
-    let r = recieve_file::get_file(&root_path, "test1.txt").await;
+    let r = get_file::get_file(&root_path, "test1.txt").await;
     println!("{:?}", r);
 
     let state = AppState { root_path };
@@ -51,7 +52,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/paths", get(get_paths))
-        .route("/get/:path", get(stream_file_handler))
+        .route("/get/:path", get(send_file_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
