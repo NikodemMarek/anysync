@@ -19,16 +19,13 @@ async fn get_remote_files() -> Result<Vec<PathBuf>> {
     Ok(res)
 }
 
-pub async fn get_missing_local_files(root_path: &PathBuf) -> Result<Vec<String>> {
+pub async fn get_missing_local_files(root_path: &PathBuf) -> Result<Vec<PathBuf>> {
     let local_files = crate::paths::get_files_relative(&root_path)?;
     let remote_files = get_remote_files().await?;
 
-    let diff = remote_files.into_iter()
-        .filter(|remote_file| !local_files.iter().any(|local_file| local_file == remote_file))
-        .map(|path| path.to_string_lossy().to_string())
-        .collect();
+    let missing = crate::paths::missing(&local_files, &remote_files);
 
-    Ok(diff)
+    Ok(missing)
 }
 
 pub async fn get_file(root_path: &PathBuf, path: &str) -> Result<()> {

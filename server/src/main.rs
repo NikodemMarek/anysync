@@ -8,6 +8,7 @@ mod send_file;
 mod get_file;
 mod paths;
 mod file_stream;
+mod msg;
 
 use send_file::send_file_handler;
 

@@ -26,3 +26,10 @@ pub fn get_files_relative(path: &PathBuf) -> Result<Vec<PathBuf>> {
 
     Ok(files)
 }
+
+pub fn missing<'a, T: Ord + Clone>(has: &'a [T], wants: &'a [T]) -> Vec<T> {
+    wants.iter()
+        .filter(|a| !has.iter().any(|b| *a == b))
+        .map(|p| p.clone())
+        .collect()
+}
