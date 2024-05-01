@@ -4,13 +4,11 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use clap::Parser;
 
-mod send_file;
+mod ws_transfer_handlers;
 mod get_file;
 mod paths;
 mod file_stream;
 mod msg;
-
-use send_file::send_file_handler;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -40,6 +38,8 @@ async fn main() {
     println!("{:?}", fl);
     let r = get_file::get_file(&root_path, "test1.txt").await;
     println!("{:?}", r);
+    let r = get_file::set_file(&root_path, "testoooo").await;
+    println!("{:?}", r);
 
     let state = AppState { root_path };
 
@@ -53,7 +53,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/paths", get(get_paths))
-        .route("/get/:path", get(send_file_handler))
+        .route("/get/:path", get(ws_transfer_handlers::get_file_handler))
+        .route("/set/:path", get(ws_transfer_handlers::set_file_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),

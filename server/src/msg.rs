@@ -85,4 +85,15 @@ impl From<Msg> for axum::extract::ws::Message {
         }
     }
 }
-
+impl From<Msg> for tokio_tungstenite::tungstenite::Message {
+    fn from(msg: Msg) -> Self {
+        match msg {
+            Msg::Text(txt) => Self::Text(txt),
+            Msg::Binary(bin) => Self::Binary(bin),
+            Msg::Ping(ping) => Self::Ping(ping),
+            Msg::Pong(pong) => Self::Pong(pong),
+            Msg::Close(close) => Self::Close(close),
+            Msg::Frame(frame) => Self::Binary(frame.payload().to_vec()),
+        }
+    }
+}

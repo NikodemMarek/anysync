@@ -3,12 +3,13 @@ use futures::{stream::StreamExt, SinkExt};
 
 use crate::msg::Msg;
 
-pub async fn stream_to_file<M>(
+pub async fn stream_to_file<M, E>(
     path: PathBuf,
-    mut stream: impl StreamExt<Item = tokio_tungstenite::tungstenite::Result<M>> + std::marker::Unpin
+    mut stream: impl StreamExt<Item = Result<M, E>> + std::marker::Unpin
 ) -> eyre::Result<()>
 where
     M: Into<Msg>,
+    E: std::error::Error,
 {
     if path.exists() {
         if path.is_dir() {
@@ -49,11 +50,12 @@ where
 pub async fn stream_from_file<'a, M>(
     path: PathBuf,
     mut stream: impl SinkExt<M> + std::marker::Unpin,
-    chunk_size: usize
+    chunk_size: Option<usize>,
 ) -> eyre::Result<()>
 where
     M: From<Msg>,
 {
+    let chunk_size = chunk_size.unwrap_or(1024);
     let mut file = OpenOptions::new()
         .read(true)
         .open(&path)?;

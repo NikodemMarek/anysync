@@ -33,10 +33,27 @@ pub async fn get_file(root_path: &PathBuf, path: &str) -> Result<()> {
     let local_path = root_path.join(path);
 
     let (ws_stream, _) = connect_async(url).await?;
-    let (_, read_stream) = ws_stream.split();
+    let (_, read) = ws_stream.split();
 
     tokio::spawn(async move {
-        let res = crate::file_stream::stream_to_file(local_path, read_stream).await;
+        let res = crate::file_stream::stream_to_file(local_path, read).await;
+        if let Err(e) = res {
+            eprintln!("error while receiving file: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+pub async fn set_file(root_path: &PathBuf, path: &str) -> Result<()> {
+    let url = url::Url::parse(&format!("ws://{}", SERVER_ADDR))?.join(format!("set/{}", path).as_str())?;
+    let local_path = root_path.join(path);
+
+    let (ws_stream, _) = connect_async(url).await?;
+    let (write, _) = ws_stream.split();
+
+    tokio::spawn(async move {
+        let res = crate::file_stream::stream_from_file(local_path, write, None).await;
         if let Err(e) = res {
             eprintln!("error while receiving file: {}", e);
         }
