@@ -10,10 +10,14 @@ pub async fn get_file_handler(
     State(AppState { root_path }): State<AppState>,
     ws: WebSocketUpgrade,
 
-    Path(path): Path<String>,
+    // Path(path): Path<String>, // TODO: get path from path
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
+    // let path = root_path.join(path);
+    let path = params.get("path")
+        .expect("missing path parameter");
     let path = root_path.join(path);
+
     let chunk_size = params.get("chunk_size").and_then(|s| s.parse().ok());
 
     ws.on_upgrade(move |socket| async move {
@@ -32,8 +36,12 @@ pub async fn set_file_handler(
     State(AppState { root_path }): State<AppState>,
     ws: WebSocketUpgrade,
 
-    Path(path): Path<String>,
+    // Path(path): Path<String>, // TODO: get path from path
+    Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
+    // let path = root_path.join(path);
+    let path = params.get("path")
+        .expect("missing path parameter");
     let path = root_path.join(path);
 
     ws.on_upgrade(move |socket| async {

@@ -2,34 +2,11 @@ use std::path::PathBuf;
 use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 use eyre::Result;
-use reqwest;
 
 const SERVER_ADDR: &str = "localhost:5060";
 
-async fn get_remote_files() -> Result<Vec<PathBuf>> {
-    let url = format!("http://{}/paths", SERVER_ADDR);
-
-    let res = reqwest::get(url).await?
-        .json::<Vec<String>>()
-        .await?
-        .iter()
-        .map(|s| PathBuf::from(s))
-        .collect();
-
-    Ok(res)
-}
-
-pub async fn get_missing_local_files(root_path: &PathBuf) -> Result<Vec<PathBuf>> {
-    let local_files = lib::paths::get_files_relative(&root_path)?;
-    let remote_files = get_remote_files().await?;
-
-    let missing = lib::paths::missing(&local_files, &remote_files);
-
-    Ok(missing)
-}
-
-pub async fn get_file(root_path: &PathBuf, path: &str) -> Result<()> {
-    let url = format!("ws://{}/get/{}", SERVER_ADDR, path);
+pub async fn get_file(root_path: &PathBuf, path: &PathBuf) -> Result<()> {
+    let url = format!("ws://{}/get?path={}", SERVER_ADDR, path.to_string_lossy().to_string());
     let local_path = root_path.join(path);
 
     let (ws_stream, _) = connect_async(url).await?;
@@ -45,8 +22,8 @@ pub async fn get_file(root_path: &PathBuf, path: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn set_file(root_path: &PathBuf, path: &str) -> Result<()> {
-    let url = format!("ws://{}/set/{}", SERVER_ADDR, path);
+pub async fn set_file(root_path: &PathBuf, path: &PathBuf) -> Result<()> {
+    let url = format!("ws://{}/set?path={}", SERVER_ADDR, path.to_string_lossy().to_string());
     let local_path = root_path.join(path);
 
     let (ws_stream, _) = connect_async(url).await?;

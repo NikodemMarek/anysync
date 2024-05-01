@@ -17,6 +17,11 @@ where
         } else {
             fs::remove_file(&path).unwrap();
         }
+    } else {
+        let parent = path.parent().unwrap();
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
     }
 
     let mut file = OpenOptions::new()

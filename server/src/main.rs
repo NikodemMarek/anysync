@@ -42,8 +42,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/paths", get(get_paths))
-        .route("/get/:path", get(ws_transfer_handlers::get_file_handler))
-        .route("/set/:path", get(ws_transfer_handlers::set_file_handler))
+        .route("/get", get(ws_transfer_handlers::get_file_handler))
+        .route("/set", get(ws_transfer_handlers::set_file_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),

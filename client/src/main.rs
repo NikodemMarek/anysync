@@ -1,12 +1,14 @@
 use std::path::PathBuf;
 use clap::Parser;
+use futures_util::future::join_all;
 
-mod get_file;
+mod ws_transfer_handlers;
+mod check;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, long, default_value = "../testdir")]
+    #[arg(short, long, default_value = "../testdircopy")]
     root_path: PathBuf,
 
     #[arg(short, long, default_value = "5060")]
@@ -17,10 +19,32 @@ struct Args {
 async fn main() {
     let Args { root_path, port } = Args::parse();
 
-    let fl = get_file::get_missing_local_files(&root_path).await;
-    println!("{:?}", fl);
-    let r = get_file::get_file(&root_path, "test1.txt").await;
-    println!("{:?}", r);
-    let r = get_file::set_file(&root_path, "testoooo").await;
-    println!("{:?}", r);
+    let (local_paths, remote_paths) = check::missing_paths(&root_path).await
+        .expect("failed to get missing local files");
+
+    // Sync remote paths to local
+    let tasks = local_paths
+        .iter()
+        .map(|p| ws_transfer_handlers::get_file(&root_path, p));
+
+    join_all(tasks).await
+        .iter()
+        .for_each(|r| {
+            if let Err(e) = r {
+                eprintln!("error while receiving file: {}", e);
+            }
+        });
+
+    // Sync local paths to remote
+    let tasks = remote_paths
+        .iter()
+        .map(|p| ws_transfer_handlers::set_file(&root_path , p));
+
+    join_all(tasks).await
+        .iter()
+        .for_each(|r| {
+            if let Err(e) = r {
+                eprintln!("error while sending file: {}", e);
+            }
+        });
 }
