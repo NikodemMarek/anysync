@@ -20,7 +20,7 @@ pub async fn get_file_handler(
         let (sender, _) = socket.split();
 
         tokio::spawn(async move {
-            let res = crate::file_stream::stream_from_file(path, sender, chunk_size).await;
+            let res = lib::file_stream::stream_from_file(path, sender, chunk_size).await;
             if let Err(e) = res {
                 eprintln!("error while streaming file: {}", e);
             }
@@ -40,7 +40,7 @@ pub async fn set_file_handler(
         let (_, reciever) = socket.split();
 
         tokio::spawn(async move {
-            let res = crate::file_stream::stream_to_file(path, reciever).await;
+            let res = lib::file_stream::stream_to_file(path, reciever).await;
             if let Err(e) = res {
                 eprintln!("error while streaming file: {}", e);
             }

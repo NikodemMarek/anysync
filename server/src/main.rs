@@ -5,10 +5,6 @@ use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use clap::Parser;
 
 mod ws_transfer_handlers;
-mod get_file;
-mod paths;
-mod file_stream;
-mod msg;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -26,20 +22,13 @@ struct AppState {
 }
 
 async fn get_paths(State(AppState { root_path }): State<AppState>) -> (StatusCode, Json<Vec<String>>) {
-    let files = paths::get_files_relative(&root_path).unwrap();
+    let files = lib::paths::get_files_relative(&root_path).unwrap();
     (StatusCode::OK, Json(files.iter().map(|p| p.to_string_lossy().to_string()).collect()))
 }
 
 #[tokio::main]
 async fn main() {
     let Args { root_path, port } = Args::parse();
-
-    let fl = get_file::get_missing_local_files(&root_path).await;
-    println!("{:?}", fl);
-    let r = get_file::get_file(&root_path, "test1.txt").await;
-    println!("{:?}", r);
-    let r = get_file::set_file(&root_path, "testoooo").await;
-    println!("{:?}", r);
 
     let state = AppState { root_path };
 
