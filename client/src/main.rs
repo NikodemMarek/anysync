@@ -1,31 +1,24 @@
-use std::path::PathBuf;
-use clap::Parser;
 use futures_util::future::join_all;
+use lazy_static::lazy_static;
 
 mod ws_transfer_handlers;
 mod check;
+mod config;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(short, long, default_value = "../testdircopy")]
-    root_path: PathBuf,
-
-    #[arg(short, long, default_value = "5060")]
-    port: u16,
+lazy_static! {
+    static ref CONFIG: config::Config = config::get_final()
+        .expect("failed to get config");
 }
 
 #[tokio::main]
 async fn main() {
-    let Args { root_path, port } = Args::parse();
-
-    let (local_paths, remote_paths) = check::missing_paths(&root_path).await
+    let (local_paths, remote_paths) = check::missing_paths(&CONFIG.dir).await
         .expect("failed to get missing local files");
 
     // Sync remote paths to local
     let tasks = local_paths
         .iter()
-        .map(|p| ws_transfer_handlers::get_file(&root_path, p));
+        .map(|p| ws_transfer_handlers::get_file(&CONFIG.dir, p));
 
     join_all(tasks).await
         .iter()
@@ -38,7 +31,7 @@ async fn main() {
     // Sync local paths to remote
     let tasks = remote_paths
         .iter()
-        .map(|p| ws_transfer_handlers::set_file(&root_path , p));
+        .map(|p| ws_transfer_handlers::set_file(&CONFIG.dir , p));
 
     join_all(tasks).await
         .iter()
