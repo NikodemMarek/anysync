@@ -1499,9 +1499,12 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "clap",
+ "config",
  "eyre",
  "futures",
+ "lazy_static",
  "lib",
+ "serde",
  "tokio",
  "tower-http",
  "tracing-subscriber",
