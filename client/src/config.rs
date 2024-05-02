@@ -7,6 +7,17 @@ pub struct Config {
     pub port: u16,
     pub dir: PathBuf,
 }
+impl Config {
+    pub fn paths_url(&self) -> String {
+        format!("http://{}:{}/paths", self.host, self.port)
+    }
+    pub fn get_url(&self, path: &str) -> String {
+        format!("ws://{}:{}/get?path={}", self.host, self.port, path)
+    }
+    pub fn set_url(&self, path: &str) -> String {
+        format!("ws://{}:{}/set?path={}", self.host, self.port, path)
+    }
+}
 
 pub fn get_final() -> eyre::Result<Config> {
     Ok(config::Config::builder()

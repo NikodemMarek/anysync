@@ -2,10 +2,10 @@ use std::path::PathBuf;
 use eyre::Result;
 use reqwest;
 
-const SERVER_ADDR: &str = "localhost:5060";
+use crate::CONFIG;
 
 async fn get_remote_files() -> Result<Vec<PathBuf>> {
-    let url = format!("http://{}/paths", SERVER_ADDR);
+    let url = &CONFIG.paths_url();
 
     let res = reqwest::get(url).await?
         .json::<Vec<String>>()

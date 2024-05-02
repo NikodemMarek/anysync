@@ -3,10 +3,10 @@ use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 use eyre::Result;
 
-const SERVER_ADDR: &str = "localhost:5060";
+use crate::CONFIG;
 
 pub async fn get_file(root_path: &PathBuf, path: &PathBuf) -> Result<()> {
-    let url = format!("ws://{}/get?path={}", SERVER_ADDR, path.to_string_lossy().to_string());
+    let url = &CONFIG.get_url(&path.to_string_lossy());
     let local_path = root_path.join(path);
 
     let (ws_stream, _) = connect_async(url).await?;
@@ -23,7 +23,7 @@ pub async fn get_file(root_path: &PathBuf, path: &PathBuf) -> Result<()> {
 }
 
 pub async fn set_file(root_path: &PathBuf, path: &PathBuf) -> Result<()> {
-    let url = format!("ws://{}/set?path={}", SERVER_ADDR, path.to_string_lossy().to_string());
+    let url = &CONFIG.set_url(&path.to_string_lossy());
     let local_path = root_path.join(path);
 
     let (ws_stream, _) = connect_async(url).await?;
