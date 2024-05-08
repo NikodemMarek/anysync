@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  android-build-anysync:
+    image: mingc/android-build-box
+    container_name: android-build-anysync
+    network_mode: "host"
+    volumes:
+      - .:/project
+      # caches
+      - jenv-cache:/root/.jenv
+      # - android-sdk-cache:/opt/android-sdk
+      - ~/.dockercache/gradle:/root/.gradle
+    # command: ["bash", "-c", "adb -H 127.0.0.1 -P 5037 devices"] # Lists devices connected to host
+    command: [
+        "bash",
+        "-c",
+        "cd /project && ./gradlew installDebug && adb -H 127.0.0.1 -P 5037 shell am start -n com.example.anysync/.MainActivity",
+      ] # Installs and launches the app
+
+volumes:
+  jenv-cache:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ~/.dockercache/jenv
+  android-sdk-cache:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ~/.dockercache/android-sdk
