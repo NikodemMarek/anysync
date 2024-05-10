@@ -8,7 +8,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -21,19 +20,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.work.WorkManager
 import com.example.anysync.ui.theme.AnysyncTheme
+import com.example.anysync.workers.GetAllWsWorker
+import com.example.anysync.workers.GetAllWsWorker.Companion.ProgressStep.Companion.toInt
 import com.example.anysync.workers.GetWsWorker.Companion.PROGRESS_STEP
 import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep
 import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
-import com.example.anysync.workers.GetWsWorker.Companion.createGetWsWorker
-import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
@@ -63,82 +62,67 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Main(modifier: Modifier = Modifier) {
-    FilesList(modifier = modifier)
-}
+    val context = LocalContext.current
 
-@Composable
-fun FilesList(modifier: Modifier = Modifier) {
-    var files by remember { mutableStateOf<Array<String>>(arrayOf<String>()) }
-    LaunchedEffect(Unit) {
+    var missingFiles by remember { mutableStateOf<Array<String>>(arrayOf<String>()) }
+
+    fun refreshMissingFiles() {
         thread {
             runBlocking {
-                files = getFiles()
+                missingFiles =
+                    missingFiles(
+                        Environment.getExternalStorageDirectory().absolutePath + "/tmp",
+                        "http://192.168.68.132:5060",
+                    )
             }
         }
     }
 
-    Column(modifier = modifier) {
-        for (file in files) {
-            FileItem(path = file, modifier = Modifier.padding(8.dp))
-        }
+    LaunchedEffect(Unit) {
+        refreshMissingFiles()
     }
-}
 
-// write a compose function that displays a file with path and a button to download it
-@Composable
-fun FileItem(
-    path: String,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
+    val progressStep = remember { mutableStateOf<GetAllWsWorker.Companion.ProgressStep?>(null) }
 
-    val progressStep = remember { mutableStateOf<ProgressStep?>(null) }
-
-    fun onDownloadClick() {
-        val getWsWork = createGetWsWorker(path)
+    fun onSyncAllClick() {
+        val getAllWsWork = GetAllWsWorker.create()
         val wm = WorkManager.getInstance(context)
-        wm.enqueue(getWsWork)
-        wm.getWorkInfoByIdLiveData(getWsWork.id).observeForever {
+        wm.enqueue(getAllWsWork)
+        wm.getWorkInfoByIdLiveData(getAllWsWork.id).observeForever {
             if (it != null) {
                 progressStep.value =
                     if (it.state.isFinished) {
-                        ProgressStep.COMPLETED
+                        GetAllWsWorker.Companion.ProgressStep.COMPLETED
                     } else {
-                        ProgressStep.fromInt(it.progress.getInt(PROGRESS_STEP, ProgressStep.STARTED.toInt()))
+                        GetAllWsWorker.Companion.ProgressStep.fromInt(
+                            it.progress.getInt(PROGRESS_STEP, GetAllWsWorker.Companion.ProgressStep.STARTED.toInt()),
+                        )
                     }
             }
         }
     }
 
-    Row(modifier = modifier) {
-        Text(text = path)
+    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         if (progressStep.value != null) {
             when (progressStep.value!!) {
-                ProgressStep.STARTED -> Text("Started")
-                ProgressStep.PARSED -> Text("Parsed")
-                ProgressStep.DOWNLOADED -> Text("Downloaded")
-                ProgressStep.MOVED -> Text("Moved")
-                ProgressStep.CLEANED -> Text("Cleaned")
-                ProgressStep.COMPLETED -> Text("Completed")
+                GetAllWsWorker.Companion.ProgressStep.STARTED -> Text("Started")
+                GetAllWsWorker.Companion.ProgressStep.COMPLETED -> Text("Completed")
             }
         } else {
-            Button(onClick = ::onDownloadClick) {
-                Text("Download")
+            Button(
+                onClick = ::onSyncAllClick,
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterHorizontally),
+            ) {
+                Text("Sync All")
+            }
+        }
+
+        Column {
+            for (file in missingFiles) {
+                Text(file, modifier = Modifier, color = Color.Green)
             }
         }
     }
-}
-
-suspend fun getFiles(): Array<String> {
-    val client = OkHttpClient()
-    val request =
-        Request.Builder()
-            .url("http://192.168.68.132:5060/paths")
-            .build()
-
-    val gson = Gson()
-
-    val response = client.newCall(request).execute()
-    val body = response.body?.string() ?: "[]"
-    return gson.fromJson(body, Array<String>::class.java)
 }

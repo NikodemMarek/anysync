@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   android-build-anysync:
     image: mingc/android-build-box

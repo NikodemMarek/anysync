@@ -3,6 +3,7 @@ package com.example.anysync.workers
 import android.content.Context
 import android.os.Environment
 import androidx.work.CoroutineWorker
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
@@ -42,26 +43,36 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
             OneTimeWorkRequestBuilder<GetWsWorker>()
                 .setInputData(workDataOf("path" to path))
                 .build()
+
+        fun createGetWsWorkerRequestBuilder(path: String): OneTimeWorkRequest =
+            OneTimeWorkRequestBuilder<GetWsWorker>()
+                .setInputData(workDataOf("path" to path))
+                .build()
+    }
+
+    private suspend fun progress(step: ProgressStep) {
+        setProgress(workDataOf(PROGRESS_STEP to step.toInt()))
     }
 
     override suspend fun doWork(): Result {
-        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.STARTED.toInt()))
+        progress(ProgressStep.STARTED)
 
         val path = inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
         val fileName = path.split("/").last()
 
-        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.PARSED.toInt()))
+        progress(ProgressStep.PARSED)
 
-        val tmpFile = withContext(Dispatchers.IO) {
-            File.createTempFile("tomove", "tmp", context.cacheDir)
-        }
+        val tmpFile =
+            withContext(Dispatchers.IO) {
+                File.createTempFile("tomove", "tmp", context.cacheDir)
+            }
         try {
             downloadFile(path, tmpFile)
         } catch (e: Exception) {
             throw Exception("could not download file")
         }
 
-        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.DOWNLOADED.toInt()))
+        progress(ProgressStep.DOWNLOADED)
 
         val rootDir = Environment.getExternalStorageDirectory().toString() + "/tmp"
         val relativePath = path.split("/").dropLast(1).joinToString("/") + "/" + fileName
@@ -86,13 +97,13 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
             }
         }
 
-        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.MOVED.toInt()))
+        progress(ProgressStep.MOVED)
 
         tmpFile.delete()
 
-        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.CLEANED.toInt()))
+        progress(ProgressStep.CLEANED)
 
-        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.COMPLETED.toInt()))
+        progress(ProgressStep.COMPLETED)
 
         return Result.success()
     }
