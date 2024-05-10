@@ -74,9 +74,7 @@ dependencies {
     implementation("io.ktor:ktor-client-android:$ktorVersion")
     implementation("io.ktor:ktor-client-serialization:$ktorVersion")
     implementation("io.ktor:ktor-client-logging-jvm:$ktorVersion")
-
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
 
     // Lifecycle components
     val lifecycleVersion = "2.7.0"

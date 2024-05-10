@@ -1,128 +1,116 @@
 package com.example.anysync.workers
 
-import android.content.ContentValues
 import android.content.Context
-import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
+import android.os.Environment
 import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
 import io.ktor.client.*
+import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.websocket.*
+import io.ktor.websocket.Frame.*
 import kotlinx.coroutines.*
 import java.io.File
-import kotlin.Exception
 
-class GetWsWorker(val context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+class GetWsWorker(private val context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     companion object {
+        enum class ProgressStep(val stepNumber: Int) {
+            STARTED(0), // Worker has been started
+            PARSED(1), // Data has been parsed and validated
+            DOWNLOADED(2), // File has been downloaded
+            MOVED(3), // File has been moved to external storage
+            CLEANED(4), // Cleanup has been done
+            COMPLETED(5), // Work has been completed
+            ;
+
+            companion object {
+                fun fromInt(stepNumber: Int): ProgressStep = entries.first { it.stepNumber == stepNumber }
+
+                fun ProgressStep.toInt(): Int = stepNumber
+            }
+        }
+
         const val PROGRESS_STEP = "progress_step"
 
-        fun createGetTrackWorker(file: com.example.anysync.data.File): WorkRequest =
+        fun createGetWsWorker(path: String): WorkRequest =
             OneTimeWorkRequestBuilder<GetWsWorker>()
-                .setInputData(
-                    workDataOf(
-                        "path" to file.path,
-                        "mimeType" to file.mimeType,
-                    ),
-                )
+                .setInputData(workDataOf("path" to path))
                 .build()
     }
 
     override suspend fun doWork(): Result {
-        setProgress(workDataOf(PROGRESS_STEP to 0)) // Work has started
+        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.STARTED.toInt()))
 
         val path = inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
-        val mimeType = inputData.getString("mimeType")
-
         val fileName = path.split("/").last()
 
-        setProgress(workDataOf(PROGRESS_STEP to 1)) // Track data has been parsed and validated
+        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.PARSED.toInt()))
 
-        val tmpFile = File.createTempFile("tomove", "*/*", context.cacheDir)
-        downloadFile("", tmpFile)
+        val tmpFile = withContext(Dispatchers.IO) {
+            File.createTempFile("tomove", "tmp", context.cacheDir)
+        }
+        try {
+            downloadFile(path, tmpFile)
+        } catch (e: Exception) {
+            throw Exception("could not download file")
+        }
 
-        setProgress(workDataOf(PROGRESS_STEP to 2)) // Track has been downloaded
+        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.DOWNLOADED.toInt()))
 
-        return Result.success()
+        val rootDir = Environment.getExternalStorageDirectory().toString() + "/tmp"
+        val relativePath = path.split("/").dropLast(1).joinToString("/") + "/" + fileName
+        val outFile = File("$rootDir/$relativePath")
 
-        val resolver = context.contentResolver
-
-        val newTrackData =
-            ContentValues().apply {
-                put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Audio.Media.MIME_TYPE, mimeType ?: "audio/mpeg")
-                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/" + path)
-                put(MediaStore.Audio.Media.IS_PENDING, 1)
+        try {
+            outFile.parentFile?.mkdirs()
+        } catch (e: Exception) {
+            throw Exception("could not create parent directories")
+        }
+        try {
+            withContext(Dispatchers.IO) {
+                outFile.createNewFile()
             }
-
-        val uri = resolver.insert(getColletion(), newTrackData)
-        if (uri == null) {
-            tmpFile.delete()
-            throw Exception("xxx: could not insert into MediaStore")
+        } catch (e: Exception) {
+            throw Exception("could not create file")
         }
 
-        setProgress(workDataOf(PROGRESS_STEP to 3)) // Track data has been added to MediaStore
-
-        val mediaFileStream = resolver.openOutputStream(uri)
-        if (mediaFileStream == null) {
-            tmpFile.delete()
-            newTrackData.clear()
-            resolver.delete(uri, null, null)
-            throw Exception("xxx: GetTrackWorker: could not open output stream")
+        outFile.outputStream().use { outputStream ->
+            tmpFile.inputStream().use { inputStream ->
+                inputStream.copyTo(outputStream)
+            }
         }
 
-        tmpFile.inputStream().use { inputStream ->
-            inputStream.copyTo(mediaFileStream)
-        }
-
-        setProgress(workDataOf(PROGRESS_STEP to 4)) // Track has been moved to MediaStore
+        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.MOVED.toInt()))
 
         tmpFile.delete()
 
-        newTrackData.clear()
-        newTrackData.put(MediaStore.Audio.Media.IS_PENDING, 0)
-        resolver.update(uri, newTrackData, null, null)
+        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.CLEANED.toInt()))
 
-        setProgress(workDataOf(PROGRESS_STEP to 5)) // Cleanup has been done
+        setProgress(workDataOf(PROGRESS_STEP to ProgressStep.COMPLETED.toInt()))
 
         return Result.success()
     }
 
-    fun downloadFile(
+    private suspend fun downloadFile(
         uri: String,
         file: File,
     ) {
-        val client =
-            HttpClient {
-                install(WebSockets)
-            }
-        runBlocking {
-            client.webSocket(method = HttpMethod.Get, host = "127.0.0.1", port = 5060, path = "/get/$uri") {
-                while (true) {
-                    val othersMessage = incoming.receive() as? Frame.Text ?: continue
-                    println(othersMessage.readText())
-                    val myMessage = readlnOrNull()
-                    if (myMessage != null) {
-                        send(myMessage)
-                    }
+        val client = HttpClient(CIO).config { install(WebSockets) }
+        client.ws(host = "192.168.68.132", port = 5060, path = "get?path=$uri") {
+            for (frame in incoming) {
+                if (frame !is Binary) {
+                    throw Exception("unexpected frame type")
+                } else {
+                    file.appendBytes(frame.data)
                 }
             }
         }
         client.close()
-        println("Connection closed. Goodbye!")
-    }
-
-    fun getColletion(): Uri {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        } else {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        }
     }
 }
