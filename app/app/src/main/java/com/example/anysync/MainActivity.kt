@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.work.WorkManager
 import com.example.anysync.ui.theme.AnysyncTheme
 import com.example.anysync.workers.GetWsWorker.Companion.PROGRESS_STEP
+import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep
+import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
 import com.example.anysync.workers.GetWsWorker.Companion.createGetWsWorker
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
@@ -90,7 +92,7 @@ fun FileItem(
 ) {
     val context = LocalContext.current
 
-    val progressStep = remember { mutableStateOf<Int?>(null) }
+    val progressStep = remember { mutableStateOf<ProgressStep?>(null) }
 
     fun onDownloadClick() {
         val getWsWork = createGetWsWorker(path)
@@ -100,9 +102,9 @@ fun FileItem(
             if (it != null) {
                 progressStep.value =
                     if (it.state.isFinished) {
-                        5
+                        ProgressStep.COMPLETED
                     } else {
-                        it.progress.getInt(PROGRESS_STEP, 0)
+                        ProgressStep.fromInt(it.progress.getInt(PROGRESS_STEP, ProgressStep.STARTED.toInt()))
                     }
             }
         }
@@ -111,8 +113,13 @@ fun FileItem(
     Row(modifier = modifier) {
         Text(text = path)
         if (progressStep.value != null) {
-            when (progressStep.value) {
-                else -> Text("Download")
+            when (progressStep.value!!) {
+                ProgressStep.STARTED -> Text("Started")
+                ProgressStep.PARSED -> Text("Parsed")
+                ProgressStep.DOWNLOADED -> Text("Downloaded")
+                ProgressStep.MOVED -> Text("Moved")
+                ProgressStep.CLEANED -> Text("Cleaned")
+                ProgressStep.COMPLETED -> Text("Completed")
             }
         } else {
             Button(onClick = ::onDownloadClick) {
