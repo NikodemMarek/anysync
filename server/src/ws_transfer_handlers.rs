@@ -1,7 +1,7 @@
 use axum::{
-    extract::{ws::WebSocketUpgrade, Query},
+    extract::{ws::WebSocketUpgrade, Path},
     response::IntoResponse,
-}; use std::collections::HashMap;
+};
 use futures::stream::StreamExt;
 
 use crate::CONFIG;
@@ -9,15 +9,12 @@ use crate::CONFIG;
 pub async fn get_file_handler(
     ws: WebSocketUpgrade,
 
-    // Path(path): Path<String>, // TODO: get path from path
-    Query(params): Query<HashMap<String, String>>,
+    Path((source, path)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    // let path = root_path.join(path);
-    let path = params.get("path")
-        .expect("missing path parameter");
-    let path = CONFIG.dir.join(path);
+    let source_config = CONFIG.sources.get(&source).expect("source not found");
 
-    let chunk_size = params.get("chunk_size").and_then(|s| s.parse().ok());
+    let path = source_config.dir.join(path);
+    let chunk_size = None;
 
     ws.on_upgrade(move |socket| async move {
         let (sender, _) = socket.split();
@@ -34,13 +31,11 @@ pub async fn get_file_handler(
 pub async fn set_file_handler(
     ws: WebSocketUpgrade,
 
-    // Path(path): Path<String>, // TODO: get path from path
-    Query(params): Query<HashMap<String, String>>,
+    Path((source, path)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    // let path = root_path.join(path);
-    let path = params.get("path")
-        .expect("missing path parameter");
-    let path = CONFIG.dir.join(path);
+    let source_config = CONFIG.sources.get(&source).expect("source not found");
+
+    let path = source_config.dir.join(path);
 
     ws.on_upgrade(move |socket| async {
         let (_, reciever) = socket.split();

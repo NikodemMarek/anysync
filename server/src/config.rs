@@ -4,6 +4,12 @@ use clap::Parser;
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct Config {
     pub port: u16,
+    pub sources: std::collections::HashMap<String, SourceConfig>,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct SourceConfig {
+    pub name: String,
     pub dir: PathBuf,
 }
 
@@ -41,9 +47,6 @@ impl config::Source for DefaultConfig {
 struct CliArgs {
     #[arg(short, long)]
     port: Option<u16>,
-
-    #[arg(short, long)]
-    dir: Option<PathBuf>,
 }
 impl config::Source for CliArgs {
     fn clone_into_box(&self) -> Box<dyn config::Source + Send + Sync> {
@@ -60,15 +63,6 @@ impl config::Source for CliArgs {
                 Value::new(
                     Some(&String::from("port")),
                     *port
-                )
-            );
-        }
-        if let Some(dir) = &self.dir {
-            map.insert(
-                "dir".to_string(),
-                Value::new(
-                    Some(&String::from("dir")),
-                    dir.to_string_lossy().to_string(),
                 )
             );
         }

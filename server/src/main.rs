@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use axum::{extract::Json, http::StatusCode, routing::{get, Router}};
+use axum::{extract::{Json, Path}, http::StatusCode, routing::{get, Router}};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use lazy_static::lazy_static;
@@ -12,8 +12,12 @@ lazy_static! {
         .expect("failed to get config");
 }
 
-async fn get_paths() -> (StatusCode, Json<Vec<String>>) {
-    let files = lib::paths::get_files_relative(&CONFIG.dir).unwrap();
+async fn get_paths(
+    Path(source): Path<String>,
+) -> (StatusCode, Json<Vec<String>>) {
+    let source_config = CONFIG.sources.get(&source).expect("source not found");
+
+    let files = lib::paths::get_files_relative(&source_config.dir).unwrap();
     (StatusCode::OK, Json(files.iter().map(|p| p.to_string_lossy().to_string()).collect()))
 }
 
@@ -28,9 +32,9 @@ async fn main() {
         .init();
 
     let app = Router::new()
-        .route("/paths", get(get_paths))
-        .route("/get", get(ws_transfer_handlers::get_file_handler))
-        .route("/set", get(ws_transfer_handlers::set_file_handler))
+        .route("/:source/paths", get(get_paths))
+        .route("/:source/get/*path", get(ws_transfer_handlers::get_file_handler))
+        .route("/:source/set/*path", get(ws_transfer_handlers::set_file_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
