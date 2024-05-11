@@ -5,16 +5,18 @@ import android.os.Environment
 import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.util.*
-import io.ktor.websocket.*
+import io.ktor.http.cio.websocket.*
+
+
+import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.Frame.*
 import kotlinx.coroutines.*
 import java.io.File
@@ -39,14 +41,13 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
 
         const val PROGRESS_STEP = "progress_step"
 
-        fun createGetWsWorker(path: String): WorkRequest =
+        fun create(
+            path: String,
+            uuid: String,
+        ): OneTimeWorkRequest =
             OneTimeWorkRequestBuilder<GetWsWorker>()
                 .setInputData(workDataOf("path" to path))
-                .build()
-
-        fun createGetWsWorkerRequestBuilder(path: String): OneTimeWorkRequest =
-            OneTimeWorkRequestBuilder<GetWsWorker>()
-                .setInputData(workDataOf("path" to path))
+                .addTag(uuid)
                 .build()
     }
 

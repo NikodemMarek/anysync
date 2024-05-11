@@ -25,14 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.work.WorkManager
 import com.example.anysync.ui.theme.AnysyncTheme
-import com.example.anysync.workers.GetAllWsWorker
-import com.example.anysync.workers.GetAllWsWorker.Companion.ProgressStep.Companion.toInt
-import com.example.anysync.workers.GetWsWorker.Companion.PROGRESS_STEP
-import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep
-import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
 import kotlinx.coroutines.runBlocking
+import java.util.UUID
 import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
@@ -82,31 +77,23 @@ fun Main(modifier: Modifier = Modifier) {
         refreshMissingFiles()
     }
 
-    val progressStep = remember { mutableStateOf<GetAllWsWorker.Companion.ProgressStep?>(null) }
+    val filesDownloaded = remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     fun onSyncAllClick() {
-        val getAllWsWork = GetAllWsWorker.create()
-        val wm = WorkManager.getInstance(context)
-        wm.enqueue(getAllWsWork)
-        wm.getWorkInfoByIdLiveData(getAllWsWork.id).observeForever {
-            if (it != null) {
-                progressStep.value =
-                    if (it.state.isFinished) {
-                        GetAllWsWorker.Companion.ProgressStep.COMPLETED
-                    } else {
-                        GetAllWsWorker.Companion.ProgressStep.fromInt(
-                            it.progress.getInt(PROGRESS_STEP, GetAllWsWorker.Companion.ProgressStep.STARTED.toInt()),
-                        )
-                    }
-            }
+        val workUUID = UUID.randomUUID().toString()
+        getManyWs(context, workUUID, missingFiles).observeForever {
+            filesDownloaded.value = it
         }
     }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        if (progressStep.value != null) {
-            when (progressStep.value!!) {
-                GetAllWsWorker.Companion.ProgressStep.STARTED -> Text("Started")
-                GetAllWsWorker.Companion.ProgressStep.COMPLETED -> Text("Completed")
+        if (filesDownloaded.value != null) {
+            val (completed, total) = filesDownloaded.value!!
+
+            if (completed == total) {
+                Text("All files downloaded")
+            } else {
+                Text("Downloaded $completed of $total files")
             }
         } else {
             Button(
