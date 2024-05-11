@@ -10,24 +10,20 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.anysync.ui.components.Source
 import com.example.anysync.ui.theme.AnysyncTheme
 import kotlinx.coroutines.runBlocking
-import java.util.UUID
 import kotlin.concurrent.thread
 
 class MainActivity : ComponentActivity() {
@@ -79,37 +75,11 @@ fun Main(modifier: Modifier = Modifier) {
 
     val filesDownloaded = remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    fun onSyncAllClick() {
-        val workUUID = UUID.randomUUID().toString()
-        getManyWs(context, workUUID, missingFiles).observeForever {
-            filesDownloaded.value = it
-        }
-    }
-
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        if (filesDownloaded.value != null) {
-            val (completed, total) = filesDownloaded.value!!
-
-            if (completed == total) {
-                Text("All files downloaded")
-            } else {
-                Text("Downloaded $completed of $total files")
-            }
-        } else {
-            Button(
-                onClick = ::onSyncAllClick,
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterHorizontally),
-            ) {
-                Text("Sync All")
-            }
-        }
-
-        Column {
-            for (file in missingFiles) {
-                Text(file, modifier = Modifier, color = Color.Green)
-            }
-        }
+        Source(
+            title = "Source",
+            path = Environment.getExternalStorageDirectory().absolutePath + "/tmp",
+            host = "http://192.168.68.132:5060",
+        )
     }
 }
