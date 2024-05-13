@@ -12,7 +12,7 @@ suspend fun getRemotePaths(sourceUri: String): Array<String> {
     val client = OkHttpClient()
     val request =
         Request.Builder()
-            .url("http://${sourceUri}/paths")
+            .url("http://$sourceUri/paths")
             .build()
 
     val gson = Gson()
@@ -51,10 +51,12 @@ inline fun <reified T> missing(
     wants: Array<T>,
 ): Array<T> = wants.filter { it !in has }.toTypedArray()
 
-suspend fun missingFiles(
-    source: Source
-): Array<String> =
-    missing(
-        getLocalFiles(source.path),
-        getRemotePaths(source.url()),
-    )
+suspend fun missingFiles(source: Source): Pair<Array<String>, Array<String>> {
+    val local = getLocalFiles(source.path)
+    val remote = getRemotePaths(source.url())
+
+    val missingLocal = missing(local, remote)
+    val missingRemote = missing(remote, local)
+
+    return Pair(missingLocal, missingRemote)
+}

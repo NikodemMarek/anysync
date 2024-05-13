@@ -10,7 +10,7 @@ fun getManyWs(
     uuid: String,
     source: com.example.anysync.data.Source,
     paths: Array<String>,
-): LiveData<Pair<Int, Int>> {
+) {
     val workChunkSize = 10
 
     val workChunks =
@@ -27,10 +27,28 @@ fun getManyWs(
         workQueue = workQueue.then(workChunk)
     }
     workQueue.enqueue()
+}
 
-    return wm.getWorkInfosByTagLiveData(uuid).map { workInfos ->
-        val completed = workInfos.count { it.state.isFinished }
-        val total = workInfos.size
-        Pair(completed, total)
+fun setManyWs(
+    context: Context,
+    uuid: String,
+    source: com.example.anysync.data.Source,
+    paths: Array<String>,
+) {
+    val workChunkSize = 10
+
+    val workChunks =
+        paths.map {
+            com.example.anysync.workers.SetWsWorker.create(source, it, uuid)
+        }.chunked(workChunkSize)
+    if (workChunks.isEmpty()) {
+        throw Exception("no missing files")
     }
+
+    val wm = WorkManager.getInstance(context)
+    var workQueue = wm.beginWith(workChunks.first())
+    for (workChunk in workChunks.drop(1)) {
+        workQueue = workQueue.then(workChunk)
+    }
+    workQueue.enqueue()
 }
