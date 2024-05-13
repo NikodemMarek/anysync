@@ -1,16 +1,18 @@
 package com.example.anysync
 
+import com.example.anysync.data.Source
+import com.example.anysync.data.url
 import com.google.gson.Gson
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.util.Stack
 
-suspend fun getRemoteFiles(host: String): Array<String> {
+suspend fun getRemotePaths(sourceUri: String): Array<String> {
     val client = OkHttpClient()
     val request =
         Request.Builder()
-            .url("$host/paths")
+            .url("http://${sourceUri}/paths")
             .build()
 
     val gson = Gson()
@@ -50,10 +52,9 @@ inline fun <reified T> missing(
 ): Array<T> = wants.filter { it !in has }.toTypedArray()
 
 suspend fun missingFiles(
-    path: String,
-    host: String,
+    source: Source
 ): Array<String> =
     missing(
-        getLocalFiles(path),
-        getRemoteFiles(host),
+        getLocalFiles(source.path),
+        getRemotePaths(source.url()),
     )

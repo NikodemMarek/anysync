@@ -8,13 +8,14 @@ import androidx.work.WorkManager
 fun getManyWs(
     context: Context,
     uuid: String,
+    source: com.example.anysync.data.Source,
     paths: Array<String>,
 ): LiveData<Pair<Int, Int>> {
     val workChunkSize = 10
 
     val workChunks =
         paths.map {
-            com.example.anysync.workers.GetWsWorker.create(it, uuid)
+            com.example.anysync.workers.GetWsWorker.create(source, it, uuid)
         }.chunked(workChunkSize)
     if (workChunks.isEmpty()) {
         throw Exception("no missing files")

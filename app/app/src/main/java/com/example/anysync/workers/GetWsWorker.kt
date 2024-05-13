@@ -1,12 +1,13 @@
 package com.example.anysync.workers
 
 import android.content.Context
-import android.os.Environment
 import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.example.anysync.data.Source
+import com.example.anysync.data.url
 import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -36,11 +37,19 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
         const val PROGRESS_STEP = "progress_step"
 
         fun create(
+            source: Source,
             path: String,
             uuid: String,
         ): OneTimeWorkRequest =
             OneTimeWorkRequestBuilder<GetWsWorker>()
-                .setInputData(workDataOf("path" to path))
+                .setInputData(
+                    workDataOf(
+                        "source-name" to source.name,
+                        "source-path" to source.path,
+                        "source-host" to source.host,
+                        "path" to path,
+                    ),
+                )
                 .addTag(uuid)
                 .build()
     }
@@ -52,8 +61,16 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
     override suspend fun doWork(): Result {
         progress(ProgressStep.STARTED)
 
+        val source =
+            com.example.anysync.data.Source(
+                inputData.getString("source-name") ?: throw Exception("xxx: GetWsWorker: name is required"),
+                inputData.getString("source-path") ?: throw Exception("xxx: GetWsWorker: path is required"),
+                inputData.getString("source-host") ?: throw Exception("xxx: GetWsWorker: host is required"),
+            )
         val path = inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
+
         val fileName = path.split("/").last()
+        val relativePath = path.split("/").dropLast(1).joinToString("/") + "/" + fileName
 
         progress(ProgressStep.PARSED)
 
@@ -62,16 +79,15 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
                 File.createTempFile("tomove", "tmp", context.cacheDir)
             }
         try {
-            downloadFile(path, tmpFile)
+            downloadFile(source, path, tmpFile)
         } catch (e: Exception) {
+            println(e)
             throw Exception("could not download file")
         }
 
         progress(ProgressStep.DOWNLOADED)
 
-        val rootDir = Environment.getExternalStorageDirectory().toString() + "/tmp"
-        val relativePath = path.split("/").dropLast(1).joinToString("/") + "/" + fileName
-        val outFile = File("$rootDir/$relativePath")
+        val outFile = File("${source.path}/$relativePath")
 
         try {
             outFile.parentFile?.mkdirs()
@@ -104,16 +120,18 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) : Coro
     }
 
     private suspend fun downloadFile(
-        uri: String,
-        file: File,
+        source: Source,
+        path: String,
+        outFile: File,
     ) {
+        println("downloading ws://${source.url()}/get/$path")
         val client = HttpClient(CIO).config { install(WebSockets) }
-        client.ws(host = "192.168.68.132", port = 5060, path = "get?path=$uri") {
+        client.ws(urlString = "ws://${source.url()}/get/$path") {
             for (frame in incoming) {
                 if (frame !is Binary) {
                     throw Exception("unexpected frame type")
                 } else {
-                    file.appendBytes(frame.data)
+                    outFile.appendBytes(frame.data)
                 }
             }
         }

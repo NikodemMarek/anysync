@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.anysync.data.url
 import com.example.anysync.getManyWs
 import com.example.anysync.missingFiles
 import kotlinx.coroutines.runBlocking
@@ -27,19 +28,27 @@ import kotlin.concurrent.thread
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Source(
-    title: String,
-    path: String,
-    host: String,
-) {
+fun Source(source: com.example.anysync.data.Source) {
     val context = LocalContext.current
 
-    var missingLocalFiles by remember { mutableStateOf<Array<String>>(arrayOf<String>()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isAvailable by remember { mutableStateOf(false) }
+
+    var missingLocalFiles by remember { mutableStateOf(arrayOf<String>()) }
 
     fun refreshMissingFiles() {
         thread {
             runBlocking {
-                missingLocalFiles = missingFiles(path, host)
+                isLoading = true
+
+                try {
+                    missingLocalFiles = missingFiles(source)
+                    isAvailable = true
+                } catch (e: Exception) {
+                    isAvailable = false
+                } finally {
+                    isLoading = false
+                }
             }
         }
     }
@@ -52,7 +61,7 @@ fun Source(
 
     fun onSyncAllClick() {
         val workUUID = UUID.randomUUID().toString()
-        getManyWs(context, workUUID, missingLocalFiles).observeForever {
+        getManyWs(context, workUUID, source, missingLocalFiles).observeForever {
             filesSynced.value = it
             if (it.first == it.second) {
                 refreshMissingFiles()
@@ -63,8 +72,19 @@ fun Source(
     var expanded by remember { mutableStateOf(false) }
 
     Card(
+        modifier = Modifier.fillMaxWidth(),
         onClick = { expanded = !expanded },
     ) {
+        if (isLoading) {
+            Text("loading...", modifier = Modifier.padding(all = 8.dp))
+            return@Card
+        }
+
+        if (!isAvailable) {
+            Text("source not available", modifier = Modifier.padding(all = 8.dp), color = androidx.compose.ui.graphics.Color.Red)
+            return@Card
+        }
+
         Column(
             modifier = Modifier.padding(all = 8.dp),
         ) {
@@ -73,19 +93,19 @@ fun Source(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(text = "$title: ${missingLocalFiles.size} missing")
+                Text(text = "${source.name}: ${missingLocalFiles.size} missing")
 
                 if (filesSynced.value != null) {
                     val (completed, total) = filesSynced.value!!
 
                     if (completed == total) {
-                        Text("All files synced")
+                        Text("all files synced")
                     } else {
-                        Text("Synced $completed of $total files")
+                        Text("synced $completed of $total files")
                     }
                 } else {
                     Button(onClick = ::onSyncAllClick) {
-                        Text("Sync All")
+                        Text("sync all")
                     }
                 }
             }
