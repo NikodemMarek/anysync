@@ -84,6 +84,7 @@ fun Main(modifier: Modifier = Modifier) {
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
+    var editingWhich by remember { mutableStateOf<Int?>(null) }
     var editingSource by remember {
         mutableStateOf<com.example.anysync.data.Source?>(
             null,
@@ -92,7 +93,11 @@ fun Main(modifier: Modifier = Modifier) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { showBottomSheet = true }) {
+            FloatingActionButton(onClick = {
+                editingWhich = null
+                editingSource = null
+                showBottomSheet = true
+            }) {
                 Icon(Icons.Rounded.Add, contentDescription = "add source")
             }
         },
@@ -105,9 +110,10 @@ fun Main(modifier: Modifier = Modifier) {
                     .padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            for (source in sources) {
+            sources.forEachIndexed { index, source ->
                 Card {
                     Source(source = source) {
+                        editingWhich = index
                         editingSource = source
                         showBottomSheet = true
                     }
@@ -119,6 +125,7 @@ fun Main(modifier: Modifier = Modifier) {
             ModalBottomSheet(
                 sheetState = sheetState,
                 onDismissRequest = {
+                    editingWhich = null
                     editingSource = null
                     showBottomSheet = false
                 },
@@ -133,9 +140,16 @@ fun Main(modifier: Modifier = Modifier) {
                     EditSource(
                         source = editingSource,
                     ) {
-                        sources += it
-                        editingSource = null
+                        if (editingWhich != null) {
+                            sources = sources.toMutableList().also { sources ->
+                                sources[editingWhich!!] = it
+                            }
+                        } else {
+                            sources += it
+                        }
 
+                        editingWhich = null
+                        editingSource = null
                         showBottomSheet = false
                     }
                 }
