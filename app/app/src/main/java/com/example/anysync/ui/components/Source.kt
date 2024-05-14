@@ -1,6 +1,9 @@
 package com.example.anysync.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +43,12 @@ enum class State {
     EMPTY,
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Source(source: com.example.anysync.data.Source) {
+fun Source(
+    source: com.example.anysync.data.Source,
+    onLongClick: () -> Unit = {},
+) {
     val context = LocalContext.current
 
     var state by remember { mutableStateOf(State.LOADING) }
@@ -104,24 +108,24 @@ fun Source(source: com.example.anysync.data.Source) {
 
     var isExpanded by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = { isExpanded = !isExpanded },
+    Box(
+        modifier =
+            Modifier.fillMaxWidth().combinedClickable(onLongClick = onLongClick, onDoubleClick = ::refreshMissingFiles) {
+                isExpanded = !isExpanded
+            }.padding(8.dp),
     ) {
         if (state == State.LOADING) {
             Text("loading...", modifier = Modifier.padding(all = 8.dp))
-            return@Card
+            return
         } else if (state == State.UNAVAILABLE) {
             Text("source not available", modifier = Modifier.padding(all = 8.dp), color = Color.Red)
-            return@Card
+            return
         } else if (state == State.EMPTY) {
             Text("all files synced", modifier = Modifier.padding(all = 8.dp))
-            return@Card
+            return
         }
 
-        Column(
-            modifier = Modifier.padding(all = 8.dp),
-        ) {
+        Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

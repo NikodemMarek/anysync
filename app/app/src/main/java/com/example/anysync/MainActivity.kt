@@ -7,14 +7,16 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -59,7 +61,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun Main(modifier: Modifier = Modifier) {
     var sources by remember {
@@ -104,7 +106,12 @@ fun Main(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for (source in sources) {
-                Source(source = source)
+                Card {
+                    Source(source = source) {
+                        editingSource = source
+                        showBottomSheet = true
+                    }
+                }
             }
         }
 
@@ -117,14 +124,22 @@ fun Main(modifier: Modifier = Modifier) {
                 },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                EditSource(source = editingSource) {
-                    sources += it
-                    editingSource = null
+                Box(
+                    modifier =
+                        Modifier
+                            .padding(8.dp)
+                            .fillMaxWidth(),
+                ) {
+                    EditSource(
+                        source = editingSource,
+                    ) {
+                        sources += it
+                        editingSource = null
 
-                    showBottomSheet = false
+                        showBottomSheet = false
+                    }
                 }
             }
         }
     }
 }
-
