@@ -1,5 +1,6 @@
 package com.example.anysync.ui.components
 
+import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +28,9 @@ fun EditSource(
 ) {
     val pathPickerLauncher =
         rememberLauncherForActivityResult(contract = ActivityResultContracts.OpenDocumentTree()) { uri ->
-            source.value = source.value.copy(path = uri.toString())
+            val splitPath = uri?.path?.split(":") ?: return@rememberLauncherForActivityResult
+            val path = "${Environment.getExternalStorageDirectory()}/${splitPath[1]}"
+            source.value = source.value.copy(path = path)
         }
 
     Column(
