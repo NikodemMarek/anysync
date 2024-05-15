@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -20,8 +23,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.anysync.R
+import com.example.anysync.data.Actions
 import com.example.anysync.data.Source
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditSource(
     source: MutableState<Source>,
@@ -33,6 +38,19 @@ fun EditSource(
             source.value = source.value.copy(path = path)
         }
 
+    fun toggleAction(action: Actions) {
+        source.value =
+            source.value.copy(
+                actions =
+                when (source.value.actions) {
+                    Actions.NONE -> action
+                    Actions.GET -> if (action == Actions.GET) Actions.NONE else Actions.GET_SET
+                    Actions.SET -> if (action == Actions.SET) Actions.NONE else Actions.GET_SET
+                    Actions.GET_SET -> if (action == Actions.GET) Actions.SET else Actions.GET
+                }
+            )
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -42,6 +60,12 @@ fun EditSource(
             value = source.value.name,
             onValueChange = { source.value = source.value.copy(name = it) },
             label = { Text("name") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = source.value.label.ifEmpty { source.value.name },
+            onValueChange = { source.value = source.value.copy(label = it) },
+            label = { Text("label") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
@@ -71,6 +95,35 @@ fun EditSource(
                     color = if (source.value.path.isEmpty()) Color.Red else Color.Black,
                 )
             }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = source.value.actions in arrayOf(Actions.GET, Actions.GET_SET),
+                onClick = { toggleAction(Actions.GET) },
+                label = { Text("get") },
+                trailingIcon = {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_downward_rounded_48),
+                        contentDescription = "get",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            )
+            FilterChip(
+                selected = source.value.actions in arrayOf(Actions.SET, Actions.GET_SET),
+                onClick = { toggleAction(Actions.SET) },
+                label = { Text("set") },
+                trailingIcon = {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_upward_rounded_48),
+                        contentDescription = "set",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            )
         }
     }
 }

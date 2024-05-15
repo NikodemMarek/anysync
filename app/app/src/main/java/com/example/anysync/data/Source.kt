@@ -10,16 +10,33 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+enum class Actions {
+    NONE,
+    GET,
+    SET,
+    GET_SET, ;
+
+    companion object {
+        fun fromInt(value: Int) = entries.firstOrNull { it.ordinal == value }
+    }
+}
+
 @Entity
 data class Source(
     @ColumnInfo
     val name: String,
 
     @ColumnInfo
+    val label: String = name,
+
+    @ColumnInfo
     val path: String,
 
     @ColumnInfo
     val host: String,
+
+    @ColumnInfo
+    val actions: Actions,
 
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

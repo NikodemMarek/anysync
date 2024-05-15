@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.anysync.data.Actions
 import com.example.anysync.ui.components.EditSource
 import com.example.anysync.ui.components.Source
 import com.example.anysync.ui.theme.AnysyncTheme
@@ -95,6 +96,8 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
                 "",
                 "",
                 "",
+                "",
+                Actions.NONE
             )
         )
     }
@@ -104,6 +107,8 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
             "",
             "",
             "",
+            "",
+            Actions.NONE
         )
         editMode = EditMode.NONE
     }
@@ -115,6 +120,8 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
                     "",
                     "",
                     "",
+                    "",
+                    Actions.NONE
                 )
                 editMode = EditMode.ADD
             }) {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -98,32 +100,26 @@ fun Source(
             println(e)
         }
 
-        WorkManager.getInstance(context).getWorkInfosByTagLiveData(workUUID).observeForever { workInfos ->
-            val completed = workInfos.count { it.state.isFinished }
-            val total = workInfos.size
+        WorkManager.getInstance(context).getWorkInfosByTagLiveData(workUUID)
+            .observeForever { workInfos ->
+                val completed = workInfos.count { it.state.isFinished }
+                val total = workInfos.size
 
-            filesSynced.value = Pair(completed, total)
-        }
+                filesSynced.value = Pair(completed, total)
+            }
     }
 
     var isExpanded by remember { mutableStateOf(false) }
 
     Box(
         modifier =
-            Modifier.fillMaxWidth().combinedClickable(onLongClick = onLongClick, onDoubleClick = ::refreshMissingFiles) {
+        Modifier
+            .fillMaxWidth()
+            .combinedClickable(onLongClick = onLongClick, onDoubleClick = ::refreshMissingFiles) {
                 isExpanded = !isExpanded
-            }.padding(8.dp),
+            }
+            .padding(8.dp),
     ) {
-        if (state == State.LOADING) {
-            Text("loading...", modifier = Modifier.padding(all = 8.dp))
-            return
-        } else if (state == State.UNAVAILABLE) {
-            Text("source not available", modifier = Modifier.padding(all = 8.dp), color = Color.Red)
-            return
-        } else if (state == State.EMPTY) {
-            Text("all files synced", modifier = Modifier.padding(all = 8.dp))
-            return
-        }
 
         Column {
             Row(
@@ -131,7 +127,22 @@ fun Source(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(text = source.name, fontWeight = FontWeight.Bold)
+                Text(text = source.label, fontWeight = FontWeight.Bold)
+
+                if (state == State.LOADING) {
+                    CircularProgressIndicator(strokeCap = StrokeCap.Round)
+                    return
+                } else if (state == State.UNAVAILABLE) {
+                    Text(
+                        "source not available",
+                        modifier = Modifier.padding(all = 8.dp),
+                        color = Color.Red
+                    )
+                    return
+                } else if (state == State.EMPTY) {
+                    Text("all files synced", modifier = Modifier.padding(all = 8.dp))
+                    return
+                }
 
                 ToSync(missingLocalFiles.size, missingRemoteFiles.size)
 
@@ -160,8 +171,8 @@ fun Source(
             }
 
             if (isExpanded) {
-                PathsList(missingLocalFiles, androidx.compose.ui.graphics.Color.Green)
-                PathsList(missingRemoteFiles, androidx.compose.ui.graphics.Color.Yellow)
+                PathsList(missingLocalFiles, Color.Green)
+                PathsList(missingRemoteFiles, Color.Yellow)
             }
         }
     }
@@ -170,7 +181,7 @@ fun Source(
 @Composable
 fun PathsList(
     paths: Array<String>,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
 ) {
     Column {
         paths.forEach { item ->

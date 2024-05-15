@@ -6,9 +6,9 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.example.anysync.data.Actions
 import com.example.anysync.data.Source
 import com.example.anysync.data.url
-import com.example.anysync.workers.GetWsWorker.Companion.ProgressStep.Companion.toInt
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.WebSockets
@@ -21,20 +21,17 @@ import java.io.File
 class GetWsWorker(private val context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
     companion object {
-        enum class ProgressStep(val stepNumber: Int) {
-            STARTED(0), // Worker has been started
-            PARSED(1), // Data has been parsed and validated
-            DOWNLOADED(2), // File has been downloaded
-            MOVED(3), // File has been moved to external storage
-            CLEANED(4), // Cleanup has been done
-            COMPLETED(5), // Work has been completed
+        enum class ProgressStep {
+            STARTED, // Worker has been started
+            PARSED, // Data has been parsed and validated
+            DOWNLOADED, // File has been downloaded
+            MOVED, // File has been moved to external storage
+            CLEANED, // Cleanup has been done
+            COMPLETED, // Work has been completed
             ;
 
             companion object {
-                fun fromInt(stepNumber: Int): ProgressStep =
-                    entries.first { it.stepNumber == stepNumber }
-
-                fun ProgressStep.toInt(): Int = stepNumber
+                fun fromInt(value: Int) = entries.firstOrNull { it.ordinal == value }
             }
         }
 
@@ -51,6 +48,7 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) :
                         "source-name" to source.name,
                         "source-path" to source.path,
                         "source-host" to source.host,
+                        "source-actions" to source.actions.ordinal,
                         "path" to path,
                     ),
                 )
@@ -59,7 +57,7 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) :
     }
 
     private suspend fun progress(step: ProgressStep) {
-        setProgress(workDataOf(PROGRESS_STEP to step.toInt()))
+        setProgress(workDataOf(PROGRESS_STEP to step.ordinal))
     }
 
     override suspend fun doWork(): Result {
@@ -69,13 +67,20 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) :
             Source(
                 inputData.getString("source-name")
                     ?: throw Exception("xxx: GetWsWorker: name is required"),
+                "",
                 inputData.getString("source-path")
                     ?: throw Exception("xxx: GetWsWorker: path is required"),
                 inputData.getString("source-host")
                     ?: throw Exception("xxx: GetWsWorker: host is required"),
+                inputData.getInt("source-actions", -1).let { Actions.fromInt(it) }
+                    ?: throw Exception("xxx: GetWsWorker: actions is required"),
             )
         val path =
             inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
+
+        if (source.actions != Actions.GET && source.actions != Actions.GET_SET) {
+            throw Exception("xxx: GetWsWorker: actions do not allow GET")
+        }
 
         val fileName = path.split("/").last()
         val relativePath = path.split("/").dropLast(1).joinToString("/") + "/" + fileName
