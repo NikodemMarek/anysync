@@ -70,7 +70,10 @@ fun EditSource(
                     contentDescription = "select directory",
                     modifier = Modifier.size(24.dp),
                 )
-                Text(text = path ?: "path not selected", color = if (path == null) Color.Red else Color.Unspecified)
+                Text(
+                    text = path ?: "path not selected",
+                    color = if (path == null) Color.Red else Color.Unspecified
+                )
             }
             Button(
                 onClick = {
@@ -86,9 +89,10 @@ fun EditSource(
             onClick = {
                 onConfirm(
                     Source(
-                        name = name,
-                        path = path!!,
-                        host = host,
+                        name,
+                        path!!,
+                        host,
+                        id = source?.id ?: 0,
                     ),
                 )
             },

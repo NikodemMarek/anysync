@@ -7,7 +7,7 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.anysync.ui.components.EditSource
 import com.example.anysync.ui.components.Source
 import com.example.anysync.ui.theme.AnysyncTheme
@@ -50,6 +52,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        val vm by viewModels<MainViewModel>()
+        vm.init(applicationContext)
+
         setContent {
             AnysyncTheme {
                 Surface(
@@ -63,40 +68,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Main(modifier: Modifier = Modifier) {
-    var sources by remember {
-        mutableStateOf(
-            listOf<com.example.anysync.data.Source>(
-                com.example.anysync.data.Source(
-                    "test",
-                    Environment.getExternalStorageDirectory().absolutePath + "/tmp",
-                    "192.168.68.132:5060",
-                ),
-                com.example.anysync.data.Source(
-                    "testcp",
-                    Environment.getExternalStorageDirectory().absolutePath + "/tmp",
-                    "192.168.68.132:5060",
-                ),
-            ),
-        )
-    }
+fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
+    val sources by vm.sources.collectAsStateWithLifecycle(emptyList())
 
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
-    var editingWhich by remember { mutableStateOf<Int?>(null) }
     var editingSource by remember {
-        mutableStateOf<com.example.anysync.data.Source?>(
-            null,
-        )
+        mutableStateOf<com.example.anysync.data.Source?>(null)
     }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                editingWhich = null
                 editingSource = null
                 showBottomSheet = true
             }) {
@@ -107,16 +93,15 @@ fun Main(modifier: Modifier = Modifier) {
     ) { contentPadding ->
         Column(
             modifier =
-                modifier
-                    .fillMaxSize()
-                    .padding(contentPadding)
-                    .verticalScroll(rememberScrollState()),
+            modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            sources.forEachIndexed { index, source ->
+            sources.forEach { source ->
                 Card {
                     Source(source = source) {
-                        editingWhich = index
                         editingSource = source
                         showBottomSheet = true
                     }
@@ -128,7 +113,6 @@ fun Main(modifier: Modifier = Modifier) {
             ModalBottomSheet(
                 sheetState = sheetState,
                 onDismissRequest = {
-                    editingWhich = null
                     editingSource = null
                     showBottomSheet = false
                 },
@@ -136,22 +120,19 @@ fun Main(modifier: Modifier = Modifier) {
             ) {
                 Box(
                     modifier =
-                        Modifier
-                            .padding(8.dp)
-                            .fillMaxWidth(),
+                    Modifier
+                        .padding(8.dp)
+                        .fillMaxWidth(),
                 ) {
                     EditSource(
                         source = editingSource,
                     ) {
-                        if (editingWhich != null) {
-                            sources = sources.toMutableList().also { sources ->
-                                sources[editingWhich!!] = it
-                            }
+                        if (editingSource != null) {
+                            vm.updateSource(it)
                         } else {
-                            sources += it
+                            vm.addSource(it)
                         }
 
-                        editingWhich = null
                         editingSource = null
                         showBottomSheet = false
                     }

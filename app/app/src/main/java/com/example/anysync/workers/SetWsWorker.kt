@@ -9,15 +9,17 @@ import androidx.work.workDataOf
 import com.example.anysync.data.Source
 import com.example.anysync.data.url
 import com.example.anysync.workers.SetWsWorker.Companion.ProgressStep.Companion.toInt
-import io.ktor.client.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.websocket.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.ws
 import io.ktor.websocket.CloseReason
-import io.ktor.websocket.Frame.*
+import io.ktor.websocket.Frame.Binary
 import io.ktor.websocket.close
 import java.io.File
 
-class SetWsWorker(private val context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+class SetWsWorker(private val context: Context, params: WorkerParameters) :
+    CoroutineWorker(context, params) {
     companion object {
         enum class ProgressStep(val stepNumber: Int) {
             STARTED(0), // Worker has been started
@@ -27,7 +29,8 @@ class SetWsWorker(private val context: Context, params: WorkerParameters) : Coro
             ;
 
             companion object {
-                fun fromInt(stepNumber: Int): ProgressStep = entries.first { it.stepNumber == stepNumber }
+                fun fromInt(stepNumber: Int): ProgressStep =
+                    entries.first { it.stepNumber == stepNumber }
 
                 fun ProgressStep.toInt(): Int = stepNumber
             }
@@ -61,12 +64,16 @@ class SetWsWorker(private val context: Context, params: WorkerParameters) : Coro
         progress(ProgressStep.STARTED)
 
         val source =
-            com.example.anysync.data.Source(
-                inputData.getString("source-name") ?: throw Exception("xxx: GetWsWorker: name is required"),
-                inputData.getString("source-path") ?: throw Exception("xxx: GetWsWorker: path is required"),
-                inputData.getString("source-host") ?: throw Exception("xxx: GetWsWorker: host is required"),
+            Source(
+                inputData.getString("source-name")
+                    ?: throw Exception("xxx: GetWsWorker: name is required"),
+                inputData.getString("source-path")
+                    ?: throw Exception("xxx: GetWsWorker: path is required"),
+                inputData.getString("source-host")
+                    ?: throw Exception("xxx: GetWsWorker: host is required"),
             )
-        val path = inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
+        val path =
+            inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
 
         progress(ProgressStep.PARSED)
 
