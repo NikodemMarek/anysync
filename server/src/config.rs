@@ -10,7 +10,16 @@ pub struct Config {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct SourceConfig {
     pub name: String,
-    pub dir: PathBuf,
+    pub path: PathBuf,
+    pub actions: Actions,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub enum Actions {
+    None,
+    Get,
+    Set,
+    GetSet,
 }
 
 pub fn get_final() -> eyre::Result<Config> {

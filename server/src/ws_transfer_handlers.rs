@@ -1,10 +1,9 @@
 use axum::{
-    extract::{ws::WebSocketUpgrade, Path},
-    response::IntoResponse,
+    extract::{ws::WebSocketUpgrade, Path}, http::{Response, StatusCode}, response::IntoResponse
 };
 use futures::stream::StreamExt;
 
-use crate::CONFIG;
+use crate::{config::Actions, CONFIG};
 
 pub async fn get_file_handler(
     ws: WebSocketUpgrade,
@@ -13,7 +12,15 @@ pub async fn get_file_handler(
 ) -> impl IntoResponse {
     let source_config = CONFIG.sources.get(&source).expect("source not found");
 
-    let path = source_config.dir.join(path);
+    match source_config.actions {
+        Actions::None | Actions::Set => return Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .body("method not allowed".into())
+            .unwrap(),
+        Actions::Get | Actions::GetSet => {}
+    }
+
+    let path = source_config.path.join(path);
     let chunk_size = None;
 
     ws.on_upgrade(move |socket| async move {
@@ -35,7 +42,15 @@ pub async fn set_file_handler(
 ) -> impl IntoResponse {
     let source_config = CONFIG.sources.get(&source).expect("source not found");
 
-    let path = source_config.dir.join(path);
+    match source_config.actions {
+        Actions::None | Actions::Get => return Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .body("method not allowed".into())
+            .unwrap(),
+        Actions::Set | Actions::GetSet => {}
+    }
+
+    let path = source_config.path.join(path);
 
     ws.on_upgrade(move |socket| async {
         let (_, reciever) = socket.split();

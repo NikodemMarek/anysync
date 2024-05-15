@@ -17,7 +17,7 @@ async fn get_paths(
 ) -> (StatusCode, Json<Vec<String>>) {
     let source_config = CONFIG.sources.get(&source).expect("source not found");
 
-    let files = lib::paths::get_files_relative(&source_config.dir).unwrap();
+    let files = lib::paths::get_files_relative(&source_config.path).unwrap();
     (StatusCode::OK, Json(files.iter().map(|p| p.to_string_lossy().to_string()).collect()))
 }
 
