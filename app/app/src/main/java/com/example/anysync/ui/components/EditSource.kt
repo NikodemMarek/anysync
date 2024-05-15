@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,30 +48,26 @@ fun EditSource(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Row(
+        OutlinedButton(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            onClick = { pathPickerLauncher.launch(null) },
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Icon(
                     painter = painterResource(R.drawable.folder_rounded_48),
                     contentDescription = "select directory",
                     modifier = Modifier.size(24.dp),
+                    tint = if (source.value.path.isEmpty()) Color.Red else Color.Black,
                 )
                 Text(
                     text = source.value.path.ifEmpty { "path not selected" },
-                    color = if (source.value.path.isEmpty()) Color.Gray else Color.Black,
+                    color = if (source.value.path.isEmpty()) Color.Red else Color.Black,
                 )
             }
-            Button(
-                onClick = {
-                    pathPickerLauncher.launch(null)
-                },
-            ) {
-                Text(text = "select")
-            }
         }
-
     }
 }
