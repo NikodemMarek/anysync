@@ -17,6 +17,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +55,8 @@ fun EditSource(
             )
     }
 
+    var labelTouched by remember { mutableStateOf(source.value.label != source.value.name) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -58,13 +64,21 @@ fun EditSource(
     ) {
         OutlinedTextField(
             value = source.value.name,
-            onValueChange = { source.value = source.value.copy(name = it) },
+            onValueChange = {
+                source.value = source.value.copy(
+                    name = it,
+                    label = if (!labelTouched) it else source.value.label
+                )
+            },
             label = { Text("name") },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
-            value = source.value.label.ifEmpty { source.value.name },
-            onValueChange = { source.value = source.value.copy(label = it) },
+            value = if (labelTouched) source.value.label else source.value.name,
+            onValueChange = {
+                labelTouched = true
+                source.value = source.value.copy(label = it)
+            },
             label = { Text("label") },
             modifier = Modifier.fillMaxWidth(),
         )
