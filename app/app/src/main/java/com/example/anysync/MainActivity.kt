@@ -20,8 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -30,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,11 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.anysync.data.Actions
 import com.example.anysync.ui.components.EditSource
+import com.example.anysync.ui.components.IconLabelButton
 import com.example.anysync.ui.components.Source
 import com.example.anysync.ui.theme.AnysyncTheme
 
@@ -169,27 +168,19 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (editMode == EditMode.EDIT) {
-                            Button(
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            IconLabelButton(
+                                label = "delete",
                                 onClick = {
                                     vm.removeSource(editingSource.value)
                                     resetEdit()
-                                }) {
-                                Row(
-                                    modifier = Modifier.padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Icon(Icons.Rounded.Delete, contentDescription = "delete")
-                                    Text(text = "delete")
-                                }
-                            }
+                                },
+                                painter = rememberVectorPainter(Icons.Rounded.Delete),
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
 
-                        Button(
-                            enabled = editingSource.value.name.isNotEmpty()
-                                    && editingSource.value.host.isNotEmpty()
-                                    && editingSource.value.path.isNotEmpty(),
+                        IconLabelButton(
+                            label = "confirm",
                             onClick = {
                                 when (editMode) {
                                     EditMode.NONE -> {}
@@ -198,16 +189,12 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
                                 }
 
                                 resetEdit()
-                            }) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Icon(Icons.Rounded.Check, contentDescription = "confirm")
-                                Text(text = "confirm")
-                            }
-                        }
+                            },
+                            painter = rememberVectorPainter(Icons.Rounded.Check),
+                            enabled = editingSource.value.name.isNotEmpty()
+                                    && editingSource.value.host.isNotEmpty()
+                                    && editingSource.value.path.isNotEmpty(),
+                        )
                     }
                 }
             }
