@@ -12,6 +12,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,21 +25,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.work.WorkManager
 import com.example.anysync.R
 import com.example.anysync.data.Actions
 import com.example.anysync.getManyWs
+import com.example.anysync.missing
 import com.example.anysync.missingFiles
 import com.example.anysync.setManyWs
 import kotlinx.coroutines.runBlocking
-import java.util.UUID
 import kotlin.concurrent.thread
 
 enum class State {
     LOADING,
     AVAILABLE,
     UNAVAILABLE,
-    EMPTY,
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -49,8 +48,8 @@ fun Source(
 ) {
     var state by remember { mutableStateOf(State.LOADING) }
 
-    var missingLocalFiles by remember { mutableStateOf(emptyArray<String>()) }
-    var missingRemoteFiles by remember { mutableStateOf(emptyArray<String>()) }
+    val missingLocalFiles = remember { mutableStateOf(emptyArray<String>()) }
+    val missingRemoteFiles = remember { mutableStateOf(emptyArray<String>()) }
 
     fun refreshMissingFiles() {
         thread {
@@ -59,15 +58,10 @@ fun Source(
 
                 try {
                     val (missingLocal, missingRemote) = missingFiles(source)
-                    missingLocalFiles = missingLocal
-                    missingRemoteFiles = missingRemote
+                    missingLocalFiles.value = missingLocal
+                    missingRemoteFiles.value = missingRemote
 
-                    state =
-                        if (missingLocal.isEmpty() && missingRemote.isEmpty()) {
-                            State.EMPTY
-                        } else {
-                            State.AVAILABLE
-                        }
+                    state = State.AVAILABLE
                 } catch (e: Exception) {
                     state = State.UNAVAILABLE
                 }
@@ -108,17 +102,14 @@ fun Source(
                         color = Color.Red
                     )
                     return
-                } else if (state == State.EMPTY) {
-                    Text("all files synced", modifier = Modifier.padding(all = 8.dp))
-                    return
                 }
 
                 SourceSyncOptions(source, missingLocalFiles, missingRemoteFiles)
             }
 
             if (isExpanded) {
-                PathsList(missingLocalFiles, Color.Green)
-                PathsList(missingRemoteFiles, Color.Yellow)
+                PathsList(missingLocalFiles.value, Color.Green)
+                PathsList(missingRemoteFiles.value, Color.Yellow)
             }
         }
     }
@@ -139,42 +130,21 @@ fun PathsList(
 @Composable
 fun SourceSyncOptions(
     source: com.example.anysync.data.Source,
-    missingLocalPaths: Array<String>,
-    missingRemotePaths: Array<String>
+    missingLocalPaths: MutableState<Array<String>>,
+    missingRemotePaths: MutableState<Array<String>>,
 ) {
     val context = LocalContext.current
 
-    val localFilesSynced = remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    val remoteFilesSynced = remember { mutableStateOf<Pair<Int, Int>?>(null) }
-
     fun onSyncLocalClick() {
-        val localWorkUUID = UUID.randomUUID().toString()
-        try {
-            getManyWs(context, localWorkUUID, source, missingLocalPaths)
-        } catch (e: Exception) {
+        getManyWs(context, source, missingLocalPaths.value).observeForever {
+            missingLocalPaths.value = missing(it, missingLocalPaths.value)
         }
-        WorkManager.getInstance(context).getWorkInfosByTagLiveData(localWorkUUID)
-            .observeForever { workInfo ->
-                val completed = workInfo.count { it.state.isFinished }
-                val total = workInfo.size
-
-                localFilesSynced.value = Pair(completed, total)
-            }
     }
 
     fun onSyncRemoteClick() {
-        val remoteWorkUUID = UUID.randomUUID().toString()
-        try {
-            setManyWs(context, remoteWorkUUID, source, missingRemotePaths)
-        } catch (e: Exception) {
+        setManyWs(context, source, missingRemotePaths.value).observeForever {
+            missingRemotePaths.value = missing(it, missingRemotePaths.value)
         }
-        WorkManager.getInstance(context).getWorkInfosByTagLiveData(remoteWorkUUID)
-            .observeForever { workInfo ->
-                val completed = workInfo.count { it.state.isFinished }
-                val total = workInfo.size
-
-                remoteFilesSynced.value = Pair(completed, total)
-            }
     }
 
     fun onSyncBothClick() {
@@ -186,31 +156,30 @@ fun SourceSyncOptions(
         when (source.actions) {
             Actions.GET -> SyncButton(
                 Actions.GET,
-                missingLocalPaths.size - (localFilesSynced.value?.first ?: 0),
+                missingLocalPaths.value.size,
                 onClick = ::onSyncLocalClick
             )
 
             Actions.SET -> SyncButton(
                 Actions.SET,
-                missingRemotePaths.size - (remoteFilesSynced.value?.first ?: 0),
+                missingRemotePaths.value.size,
                 onClick = ::onSyncRemoteClick
             )
 
             Actions.GET_SET -> {
                 SyncButton(
                     Actions.GET,
-                    missingLocalPaths.size - (localFilesSynced.value?.first ?: 0),
+                    missingLocalPaths.value.size,
                     onClick = ::onSyncLocalClick
                 )
                 SyncButton(
                     Actions.SET,
-                    missingRemotePaths.size - (remoteFilesSynced.value?.first ?: 0),
+                    missingRemotePaths.value.size,
                     onClick = ::onSyncRemoteClick
                 )
                 SyncButton(
                     Actions.GET_SET,
-                    missingLocalPaths.size + missingRemotePaths.size - (localFilesSynced.value?.first
-                        ?: 0) - (remoteFilesSynced.value?.first ?: 0),
+                    missingLocalPaths.value.size + missingRemotePaths.value.size,
                     onClick = ::onSyncBothClick
                 )
             }

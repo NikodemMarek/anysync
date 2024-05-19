@@ -7,19 +7,18 @@ import androidx.work.WorkManager
 
 fun getManyWs(
     context: Context,
-    uuid: String,
     source: com.example.anysync.data.Source,
     paths: Array<String>,
-) {
+): LiveData<Array<String>> {
+    val uuid = java.util.UUID.randomUUID().toString()
     val workChunkSize = 10
 
-    val workChunks =
+    val works =
         paths.map {
             com.example.anysync.workers.GetWsWorker.create(source, it, uuid)
-        }.chunked(workChunkSize)
-    if (workChunks.isEmpty()) {
-        throw Exception("no missing files")
-    }
+        }
+    val workIds = works.map { it.id }
+    val workChunks = works.chunked(workChunkSize)
 
     val wm = WorkManager.getInstance(context)
     var workQueue = wm.beginWith(workChunks.first())
@@ -27,23 +26,27 @@ fun getManyWs(
         workQueue = workQueue.then(workChunk)
     }
     workQueue.enqueue()
+
+    return wm.getWorkInfosByTagLiveData(uuid).map { workInfos ->
+        val completedIds = workInfos.filter { it.state.isFinished }.map { it.id }
+        paths.filterIndexed { index, _ -> completedIds.contains(workIds[index]) }.toTypedArray()
+    }
 }
 
 fun setManyWs(
     context: Context,
-    uuid: String,
     source: com.example.anysync.data.Source,
     paths: Array<String>,
-) {
+): LiveData<Array<String>> {
+    val uuid = java.util.UUID.randomUUID().toString()
     val workChunkSize = 10
 
-    val workChunks =
+    val works =
         paths.map {
             com.example.anysync.workers.SetWsWorker.create(source, it, uuid)
-        }.chunked(workChunkSize)
-    if (workChunks.isEmpty()) {
-        throw Exception("no missing files")
-    }
+        }
+    val workIds = works.map { it.id }
+    val workChunks = works.chunked(workChunkSize)
 
     val wm = WorkManager.getInstance(context)
     var workQueue = wm.beginWith(workChunks.first())
@@ -51,4 +54,9 @@ fun setManyWs(
         workQueue = workQueue.then(workChunk)
     }
     workQueue.enqueue()
+
+    return wm.getWorkInfosByTagLiveData(uuid).map { workInfos ->
+        val completedIds = workInfos.filter { it.state.isFinished }.map { it.id }
+        paths.filterIndexed { index, _ -> completedIds.contains(workIds[index]) }.toTypedArray()
+    }
 }
