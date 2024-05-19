@@ -5,15 +5,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.work.WorkManager
 import com.example.anysync.R
+import com.example.anysync.data.Actions
 import com.example.anysync.getManyWs
 import com.example.anysync.missingFiles
 import com.example.anysync.setManyWs
@@ -51,12 +47,10 @@ fun Source(
     source: com.example.anysync.data.Source,
     onLongClick: () -> Unit = {},
 ) {
-    val context = LocalContext.current
-
     var state by remember { mutableStateOf(State.LOADING) }
 
-    var missingLocalFiles by remember { mutableStateOf(arrayOf<String>()) }
-    var missingRemoteFiles by remember { mutableStateOf(arrayOf<String>()) }
+    var missingLocalFiles by remember { mutableStateOf(emptyArray<String>()) }
+    var missingRemoteFiles by remember { mutableStateOf(emptyArray<String>()) }
 
     fun refreshMissingFiles() {
         thread {
@@ -85,30 +79,6 @@ fun Source(
         refreshMissingFiles()
     }
 
-    val filesSynced = remember { mutableStateOf<Pair<Int, Int>?>(null) }
-
-    fun onSyncAllClick() {
-        val workUUID = UUID.randomUUID().toString()
-        try {
-            getManyWs(context, workUUID, source, missingLocalFiles)
-        } catch (e: Exception) {
-            println(e)
-        }
-        try {
-            setManyWs(context, workUUID, source, missingRemoteFiles)
-        } catch (e: Exception) {
-            println(e)
-        }
-
-        WorkManager.getInstance(context).getWorkInfosByTagLiveData(workUUID)
-            .observeForever { workInfos ->
-                val completed = workInfos.count { it.state.isFinished }
-                val total = workInfos.size
-
-                filesSynced.value = Pair(completed, total)
-            }
-    }
-
     var isExpanded by remember { mutableStateOf(false) }
 
     Box(
@@ -120,7 +90,6 @@ fun Source(
             }
             .padding(8.dp),
     ) {
-
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -144,30 +113,7 @@ fun Source(
                     return
                 }
 
-                ToSync(missingLocalFiles.size, missingRemoteFiles.size)
-
-                if (filesSynced.value != null) {
-                    val (completed, total) = filesSynced.value!!
-
-                    if (completed == total) {
-                        Text("all files synced")
-                    } else {
-                        Text("synced $completed of $total files")
-                    }
-                } else {
-                    Button(
-                        onClick = ::onSyncAllClick,
-                        modifier = Modifier.size(40.dp),
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(0.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.sync_rounded_48),
-                            contentDescription = "sync both ways",
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                }
+                SourceSyncOptions(source, missingLocalFiles, missingRemoteFiles)
             }
 
             if (isExpanded) {
@@ -191,31 +137,99 @@ fun PathsList(
 }
 
 @Composable
-fun ToSync(
-    down: Int,
-    up: Int,
+fun SourceSyncOptions(
+    source: com.example.anysync.data.Source,
+    missingLocalPaths: Array<String>,
+    missingRemotePaths: Array<String>
 ) {
-    if (down == 0 && up == 0) {
-        return
+    val context = LocalContext.current
+
+    val localFilesSynced = remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val remoteFilesSynced = remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
+    fun onSyncLocalClick() {
+        val localWorkUUID = UUID.randomUUID().toString()
+        try {
+            getManyWs(context, localWorkUUID, source, missingLocalPaths)
+        } catch (e: Exception) {
+        }
+        WorkManager.getInstance(context).getWorkInfosByTagLiveData(localWorkUUID)
+            .observeForever { workInfo ->
+                val completed = workInfo.count { it.state.isFinished }
+                val total = workInfo.size
+
+                localFilesSynced.value = Pair(completed, total)
+            }
     }
 
-    Row {
-        if (down > 0) {
-            Text(text = "$down")
-            Icon(
-                painter = painterResource(R.drawable.arrow_downward_rounded_48),
-                contentDescription = "$down to download",
-                modifier = Modifier.size(24.dp),
-            )
+    fun onSyncRemoteClick() {
+        val remoteWorkUUID = UUID.randomUUID().toString()
+        try {
+            setManyWs(context, remoteWorkUUID, source, missingRemotePaths)
+        } catch (e: Exception) {
         }
+        WorkManager.getInstance(context).getWorkInfosByTagLiveData(remoteWorkUUID)
+            .observeForever { workInfo ->
+                val completed = workInfo.count { it.state.isFinished }
+                val total = workInfo.size
 
-        if (up > 0) {
-            Text(text = "$up")
-            Icon(
-                painter = painterResource(R.drawable.arrow_upward_rounded_48),
-                contentDescription = "$up to upload",
-                modifier = Modifier.size(24.dp),
+                remoteFilesSynced.value = Pair(completed, total)
+            }
+    }
+
+    fun onSyncBothClick() {
+        onSyncLocalClick()
+        onSyncRemoteClick()
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (source.actions) {
+            Actions.GET -> SyncButton(
+                Actions.GET,
+                missingLocalPaths.size - (localFilesSynced.value?.first ?: 0),
+                onClick = ::onSyncLocalClick
             )
+
+            Actions.SET -> SyncButton(
+                Actions.SET,
+                missingRemotePaths.size - (remoteFilesSynced.value?.first ?: 0),
+                onClick = ::onSyncRemoteClick
+            )
+
+            Actions.GET_SET -> {
+                SyncButton(
+                    Actions.GET,
+                    missingLocalPaths.size - (localFilesSynced.value?.first ?: 0),
+                    onClick = ::onSyncLocalClick
+                )
+                SyncButton(
+                    Actions.SET,
+                    missingRemotePaths.size - (remoteFilesSynced.value?.first ?: 0),
+                    onClick = ::onSyncRemoteClick
+                )
+                SyncButton(
+                    Actions.GET_SET,
+                    missingLocalPaths.size + missingRemotePaths.size - (localFilesSynced.value?.first
+                        ?: 0) - (remoteFilesSynced.value?.first ?: 0),
+                    onClick = ::onSyncBothClick
+                )
+            }
+
+            else -> {}
         }
     }
+}
+
+@Composable
+fun SyncButton(actions: Actions, toSync: Int, onClick: () -> Unit = {}) {
+    if (actions == Actions.NONE) return
+
+    IconLabelButton(
+        label = "$toSync", onClick = onClick, painter = when (actions) {
+            Actions.GET -> painterResource(R.drawable.arrow_downward_rounded_48)
+            Actions.SET -> painterResource(R.drawable.arrow_upward_rounded_48)
+            Actions.GET_SET -> painterResource(R.drawable.sync_alt_rotated_rounded_48)
+            else -> throw IllegalArgumentException("invalid action")
+        }, enabled = toSync > 0
+    )
 }

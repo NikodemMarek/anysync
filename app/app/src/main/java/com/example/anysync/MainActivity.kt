@@ -137,10 +137,10 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            sources.forEach { source ->
+            sources.forEach {
                 Card {
-                    Source(source = source) {
-                        editingSource.value = source
+                    Source(it) {
+                        editingSource.value = it
                         editMode = EditMode.EDIT
                     }
                 }

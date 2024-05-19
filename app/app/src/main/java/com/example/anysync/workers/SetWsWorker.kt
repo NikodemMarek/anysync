@@ -88,7 +88,6 @@ class SetWsWorker(private val context: Context, params: WorkerParameters) :
         try {
             sendFile(source, path, inFile)
         } catch (e: Exception) {
-            println(e)
             throw Exception("could not send file")
         }
 

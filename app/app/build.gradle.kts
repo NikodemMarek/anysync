@@ -67,13 +67,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(libs.okhttp)
-    implementation(libs.gson)
-
+    // ktor
     implementation(libs.ktor.client.android)
     implementation(libs.ktor.client.serialization)
     implementation(libs.ktor.client.logging.jvm)
     implementation(libs.ktor.client.cio.jvm)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
     // Lifecycle components
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
