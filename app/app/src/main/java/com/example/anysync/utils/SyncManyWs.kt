@@ -1,4 +1,4 @@
-package com.example.anysync
+package com.example.anysync.utils
 
 import android.content.Context
 import androidx.lifecycle.LiveData

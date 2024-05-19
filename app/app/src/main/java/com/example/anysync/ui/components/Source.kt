@@ -27,10 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.anysync.R
 import com.example.anysync.data.Actions
-import com.example.anysync.getManyWs
-import com.example.anysync.missing
-import com.example.anysync.missingFiles
-import com.example.anysync.setManyWs
+import com.example.anysync.utils.getManyWs
+import com.example.anysync.utils.missing
+import com.example.anysync.utils.missingFiles
+import com.example.anysync.utils.setManyWs
 import kotlinx.coroutines.runBlocking
 import kotlin.concurrent.thread
 

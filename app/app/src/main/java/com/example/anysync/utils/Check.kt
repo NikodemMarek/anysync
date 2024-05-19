@@ -1,4 +1,4 @@
-package com.example.anysync
+package com.example.anysync.utils
 
 import com.example.anysync.data.Source
 import com.example.anysync.data.url
