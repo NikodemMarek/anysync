@@ -88,8 +88,10 @@ fun Source(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Scheduler(source)
+
                 Text(text = source.label, fontWeight = FontWeight.Bold)
 
                 if (state == State.LOADING) {

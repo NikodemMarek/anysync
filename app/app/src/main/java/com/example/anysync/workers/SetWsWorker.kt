@@ -73,7 +73,6 @@ class SetWsWorker(private val context: Context, params: WorkerParameters) :
                 inputData.getInt("source-actions", -1).let { Actions.fromInt(it) }
                     ?: throw Exception("xxx: GetWsWorker: actions is required"),
             )
-        println(source)
         val path =
             inputData.getString("path") ?: throw Exception("xxx: GetWsWorker: path is required")
 

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -175,7 +176,10 @@ fun Main(modifier: Modifier = Modifier, vm: MainViewModel = viewModel()) {
                                     resetEdit()
                                 },
                                 painter = rememberVectorPainter(Icons.Rounded.Delete),
-                                color = MaterialTheme.colorScheme.error
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                ),
                             )
                         }
 

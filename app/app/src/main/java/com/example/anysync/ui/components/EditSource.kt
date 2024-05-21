@@ -23,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.anysync.R
@@ -102,11 +101,11 @@ fun EditSource(
                     painter = painterResource(R.drawable.folder_rounded_48),
                     contentDescription = "select directory",
                     modifier = Modifier.size(24.dp),
-                    tint = if (source.value.path.isEmpty()) Color.Red else Color.Black,
+                    tint = if (source.value.path.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 )
                 Text(
                     text = source.value.path.ifEmpty { "path not selected" },
-                    color = if (source.value.path.isEmpty()) Color.Red else Color.Black,
+                    color = if (source.value.path.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 )
             }
         }
