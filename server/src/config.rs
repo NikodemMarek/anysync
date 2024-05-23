@@ -1,6 +1,12 @@
 use std::path::PathBuf;
 use clap::Parser;
 
+const INITIAL_CONFIG_FILE: &str = r#"
+port = 5060
+
+[sources]
+"#;
+
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct Config {
     pub port: u16,
@@ -23,12 +29,21 @@ pub enum Actions {
 }
 
 pub fn get_final() -> eyre::Result<Config> {
-    Ok(config::Config::builder()
-        .add_source(DefaultConfig)
-        .add_source(config::File::with_name("../config.toml"))
-        .add_source(CliArgs::parse())
-        .build()?
-        .try_deserialize()?)
+    let mut builder = config::Config::builder();
+
+    builder = builder.add_source(DefaultConfig);
+    if let Some(config_dir) = dirs::config_dir() {
+        let path = config_dir.join("anysync/config.toml").to_string_lossy().to_string();
+        if !std::path::Path::new(&path).exists() {
+            std::fs::create_dir_all(config_dir.join("anysync"))?;
+            std::fs::write(&path, INITIAL_CONFIG_FILE)?;
+        }
+
+        builder = builder.add_source(config::File::with_name(&path));
+    }
+    builder = builder.add_source(CliArgs::parse());
+
+    Ok(builder.build()?.try_deserialize()?)
 }
 
 #[derive(Debug, Clone)]
