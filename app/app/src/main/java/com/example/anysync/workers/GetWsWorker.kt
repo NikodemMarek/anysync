@@ -17,6 +17,7 @@ import io.ktor.websocket.Frame.Binary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URLEncoder
 
 class GetWsWorker(private val context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
@@ -91,6 +92,7 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) :
             withContext(Dispatchers.IO) {
                 File.createTempFile("tomove", "tmp", context.cacheDir)
             }
+
         try {
             downloadFile(source, path, tmpFile)
         } catch (e: Exception) {
@@ -137,7 +139,13 @@ class GetWsWorker(private val context: Context, params: WorkerParameters) :
         outFile: File,
     ) {
         val client = HttpClient(CIO).config { install(WebSockets) }
-        client.ws(urlString = "ws://${source.url()}/get/$path") {
+        val urlString = "ws://${source.url()}/get/${
+            withContext(Dispatchers.IO) {
+                URLEncoder.encode(path, "UTF-8")
+            }
+        }".replace("+", "%20")
+
+        client.ws(urlString = urlString) {
             for (frame in incoming) {
                 if (frame !is Binary) {
                     throw Exception("unexpected frame type")

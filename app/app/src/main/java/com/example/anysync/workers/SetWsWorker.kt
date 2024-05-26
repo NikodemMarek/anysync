@@ -16,7 +16,10 @@ import io.ktor.client.plugins.websocket.ws
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame.Binary
 import io.ktor.websocket.close
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URLEncoder
 
 class SetWsWorker(private val context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
@@ -103,7 +106,13 @@ class SetWsWorker(private val context: Context, params: WorkerParameters) :
         inFile: File,
     ) {
         val client = HttpClient(CIO).config { install(WebSockets) }
-        client.ws(urlString = "ws://${source.url()}/set/$path") {
+        val urlString = "ws://${source.url()}/get/${
+            withContext(Dispatchers.IO) {
+                URLEncoder.encode(path, "UTF-8")
+            }
+        }".replace("+", "%20")
+
+        client.ws(urlString = urlString) {
             inFile.inputStream().buffered().use {
                 while (true) {
                     val buffer = ByteArray(1024)
