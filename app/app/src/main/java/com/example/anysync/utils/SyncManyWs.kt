@@ -5,13 +5,14 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.map
 import androidx.work.WorkManager
 
+const val workChunkSize = 4
+
 fun getManyWs(
     context: Context,
     source: com.example.anysync.data.Source,
     paths: Array<String>,
 ): LiveData<Array<String>> {
     val uuid = java.util.UUID.randomUUID().toString()
-    val workChunkSize = 10
 
     val works =
         paths.map {
@@ -39,7 +40,6 @@ fun setManyWs(
     paths: Array<String>,
 ): LiveData<Array<String>> {
     val uuid = java.util.UUID.randomUUID().toString()
-    val workChunkSize = 10
 
     val works =
         paths.map {
