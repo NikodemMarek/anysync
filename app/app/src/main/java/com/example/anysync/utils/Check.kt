@@ -6,7 +6,14 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.request.url
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.io.File
 import java.util.Stack
@@ -16,8 +23,19 @@ suspend fun getRemotePaths(sourceUri: String): Array<String> {
         .body<Array<String>>()
 }
 
-fun getLocalPaths(path: String): Array<String> {
-    val files = mutableListOf<String>()
+data class Diff(
+    val modifiedServer: Array<String>,
+    val removedServer: Array<String>,
+    val newServer: Array<String>,
+    val modifiedClient: Array<String>,
+    val removedClient: Array<String>,
+    val newClient: Array<String>
+)
+
+data class Pth(val path: String, val modified: Long)
+
+fun getLocalPaths(path: String): Array<Pth> {
+    val files = mutableListOf<Pth>()
     val root = File(path)
 
     val stack = Stack<File>()
@@ -32,7 +50,12 @@ fun getLocalPaths(path: String): Array<String> {
             if (it.isDirectory) {
                 stack.push(it)
             } else {
-                files.add(it.absolutePath.substring(cutLen))
+                files.add(
+                    Pth(
+                        it.absolutePath.substring(cutLen),
+                        it.lastModified()
+                    )
+                )
             }
         }
     }
@@ -45,12 +68,46 @@ inline fun <reified T> missing(
     wants: Array<T>,
 ): Array<T> = wants.filter { it !in has }.toTypedArray()
 
-suspend fun missingFiles(source: Source): Pair<Array<String>, Array<String>> {
+suspend fun diff(source: Source): Diff {
+    val sourceUri = source.url()
     val local = getLocalPaths(source.path)
-    val remote = getRemotePaths(source.url())
 
-    val missingLocal = missing(local, remote)
-    val missingRemote = missing(remote, local)
+    val body = HttpRequestBuilder().apply {
+        url("http://$sourceUri/diff")
+        contentType(ContentType.Application.Json)
+        setBody("[${
+            local.joinToString(",") { "{\"path\":\"${it.path}\",\"modified\":${it.modified}}" }
+        }]")
+    }
 
-    return Pair(missingLocal, missingRemote)
+    val res = HttpClient(CIO) {
+        install(ContentNegotiation) {
+            json(
+                contentType = ContentType.Application.Json
+            )
+        }
+    }.post(body).bodyAsText()
+
+    // Fucking around with kotlin serialization would take longer
+    val value =
+        """^.+modified_server.+\[(?<modifiedServer>.*)].+removed_server.+\[(?<removedServer>.*)].+new_server.+\[(?<newServer>.*)].+modified_client.+\[(?<modifiedClient>.*)].+removed_client.+\[(?<removedClient>.*)].+new_client.+\[(?<newClient>.*)].*$""".toRegex(
+            RegexOption.DOT_MATCHES_ALL
+        ).matchEntire(res.replace("\n", " "))?.groups!!
+    val modifiedServer =
+        value["modifiedServer"]?.value?.split(",")?.map { it.trim() } ?: emptyList()
+    val removedServer = value["removedServer"]?.value?.split(",")?.map { it.trim() } ?: emptyList()
+    val newServer = value["newServer"]?.value?.split(",")?.map { it.trim() } ?: emptyList()
+    val modifiedClient =
+        value["modifiedClient"]?.value?.split(",")?.map { it.trim() } ?: emptyList()
+    val removedClient = value["removedClient"]?.value?.split(",")?.map { it.trim() } ?: emptyList()
+    val newClient = value["newClient"]?.value?.split(",")?.map { it.trim() } ?: emptyList()
+
+    return Diff(
+        modifiedServer.toTypedArray(),
+        removedServer.toTypedArray(),
+        newServer.toTypedArray(),
+        modifiedClient.toTypedArray(),
+        removedClient.toTypedArray(),
+        newClient.toTypedArray()
+    )
 }

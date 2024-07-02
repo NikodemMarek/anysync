@@ -9,8 +9,8 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.example.anysync.data.Actions
 import com.example.anysync.data.Source
+import com.example.anysync.utils.diff
 import com.example.anysync.utils.getManyWs
-import com.example.anysync.utils.missingFiles
 import com.example.anysync.utils.setManyWs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -90,7 +90,7 @@ class ScheduledSync(val context: Context, params: WorkerParameters) :
                     ?: throw Exception("xxx: GetWsWorker: actions is required"),
             )
 
-        val (missingLocal, missingRemote) = missingFiles(source)
+        val (missingLocal, _, missingRemote) = diff(source)
         if ((source.actions == Actions.GET_SET || source.actions == Actions.GET) && missingLocal.isNotEmpty()) {
             getManyWs(context, source, missingLocal)
         }

@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
-use axum::{extract::{Json, Path}, http::StatusCode, routing::{get, Router}};
+use axum::{extract::{Json, Path}, http::StatusCode, routing::{get, post, Router}};
+use lib::{diff::Diff, paths::Pth};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 use lazy_static::lazy_static;
@@ -18,7 +19,21 @@ async fn get_paths(
     let source_config = CONFIG.sources.get(&source).expect("source not found");
 
     let files = lib::paths::get_files_relative(&source_config.path).unwrap();
-    (StatusCode::OK, Json(files.iter().map(|p| p.to_string_lossy().to_string()).collect()))
+    (StatusCode::OK, Json(files.iter().map(|p| p.path.to_string_lossy().to_string()).collect()))
+}
+
+async fn diff(
+    Path(source): Path<String>,
+    Json(paths): Json<Vec<Pth>>,
+) -> (StatusCode, Json<Diff>) {
+    println!("diff: {:?}", paths);
+    let source_config = CONFIG.sources.get(&source).expect("source not found");
+
+    let local_files = lib::paths::get_files_relative(&source_config.path).unwrap();
+    println!("local_files: {:?}", local_files);
+    let diffs = lib::diff::diff(&local_files, &paths, None); // TODO: last_sync
+
+    (StatusCode::OK, Json(diffs))
 }
 
 #[tokio::main]
@@ -33,6 +48,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/:source/paths", get(get_paths))
+        .route("/:source/diff", post(diff))
         .route("/:source/get/*path", get(ws_transfer_handlers::get_file_handler))
         .route("/:source/set/*path", get(ws_transfer_handlers::set_file_handler))
         .layer(

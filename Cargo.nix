@@ -26,7 +26,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "81bc8af2d7f57ffa1225601bc560850402ec239cb1c70023f38ef8ff5441d6ae";
+  nixifiedLockHash = "a11820e8d7c1541caf1d6348d027e28238726a37425b6464ac52f1f846b040af";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1397,6 +1397,7 @@ in
       axum_tungstenite = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".axum-tungstenite."0.3.0" { inherit profileName; }).out;
       eyre = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".eyre."0.6.12" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.30" { inherit profileName; }).out;
+      serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.203" { inherit profileName; }).out;
       tokio_tungstenite = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio-tungstenite."0.21.0" { inherit profileName; }).out;
     };
   });

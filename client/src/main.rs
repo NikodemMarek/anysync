@@ -18,7 +18,7 @@ async fn main() {
     // Sync remote paths to local
     let tasks = local_paths
         .iter()
-        .map(|p| ws_transfer_handlers::get_file(&CONFIG.dir, p));
+        .map(|p| ws_transfer_handlers::get_file(&CONFIG.dir, &p.path));
 
     join_all(tasks).await
         .iter()
@@ -31,7 +31,7 @@ async fn main() {
     // Sync local paths to remote
     let tasks = remote_paths
         .iter()
-        .map(|p| ws_transfer_handlers::set_file(&CONFIG.dir , p));
+        .map(|p| ws_transfer_handlers::set_file(&CONFIG.dir , &p.path));
 
     join_all(tasks).await
         .iter()

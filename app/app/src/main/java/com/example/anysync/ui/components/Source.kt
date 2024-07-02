@@ -27,9 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.anysync.R
 import com.example.anysync.data.Actions
+import com.example.anysync.utils.Diff
+import com.example.anysync.utils.diff
 import com.example.anysync.utils.getManyWs
-import com.example.anysync.utils.missing
-import com.example.anysync.utils.missingFiles
 import com.example.anysync.utils.setManyWs
 import kotlinx.coroutines.runBlocking
 import kotlin.concurrent.thread
@@ -48,8 +48,18 @@ fun Source(
 ) {
     var state by remember { mutableStateOf(State.LOADING) }
 
-    val missingLocalFiles = remember { mutableStateOf(emptyArray<String>()) }
-    val missingRemoteFiles = remember { mutableStateOf(emptyArray<String>()) }
+    val diff = remember {
+        mutableStateOf(
+            Diff(
+                emptyArray(),
+                emptyArray(),
+                emptyArray(),
+                emptyArray(),
+                emptyArray(),
+                emptyArray()
+            )
+        )
+    }
 
     fun refreshMissingFiles() {
         thread {
@@ -57,13 +67,13 @@ fun Source(
                 state = State.LOADING
 
                 try {
-                    val (missingLocal, missingRemote) = missingFiles(source)
-                    missingLocalFiles.value = missingLocal
-                    missingRemoteFiles.value = missingRemote
+                    val res = diff(source)
+                    diff.value = res
 
                     state = State.AVAILABLE
                 } catch (e: Exception) {
                     state = State.UNAVAILABLE
+                    print(e.stackTraceToString())
                 }
             }
         }
@@ -106,12 +116,16 @@ fun Source(
                     return
                 }
 
-                SourceSyncOptions(source, missingLocalFiles, missingRemoteFiles)
+                SourceSyncOptions(source, diff)
             }
 
             if (isExpanded) {
-                PathsList(missingLocalFiles.value, Color.Green)
-                PathsList(missingRemoteFiles.value, Color.Yellow)
+                PathsList(diff.value.modifiedServer, Color.Green)
+                PathsList(diff.value.removedServer, Color.Red)
+                PathsList(diff.value.newServer, Color.Blue)
+                PathsList(diff.value.modifiedClient, Color.Green)
+                PathsList(diff.value.removedClient, Color.Red)
+                PathsList(diff.value.newClient, Color.Blue)
             }
         }
     }
@@ -132,20 +146,31 @@ fun PathsList(
 @Composable
 fun SourceSyncOptions(
     source: com.example.anysync.data.Source,
-    missingLocalPaths: MutableState<Array<String>>,
-    missingRemotePaths: MutableState<Array<String>>,
+    diff: MutableState<Diff>,
 ) {
     val context = LocalContext.current
 
     fun onSyncLocalClick() {
-        getManyWs(context, source, missingLocalPaths.value).observeForever {
-            missingLocalPaths.value = missing(it, missingLocalPaths.value)
+        getManyWs(context, source, diff.value.modifiedServer).observeForever {
+            diff.value = diff.value.copy(modifiedServer = diff.value.modifiedServer)
+        }
+        getManyWs(context, source, diff.value.removedServer).observeForever {
+            diff.value = diff.value.copy(removedServer = diff.value.removedServer)
+        }
+        getManyWs(context, source, diff.value.newServer).observeForever {
+            diff.value = diff.value.copy(newServer = diff.value.newServer)
         }
     }
 
     fun onSyncRemoteClick() {
-        setManyWs(context, source, missingRemotePaths.value).observeForever {
-            missingRemotePaths.value = missing(it, missingRemotePaths.value)
+        setManyWs(context, source, diff.value.modifiedClient).observeForever {
+            diff.value = diff.value.copy(modifiedClient = diff.value.modifiedClient)
+        }
+        setManyWs(context, source, diff.value.removedClient).observeForever {
+            diff.value = diff.value.copy(removedClient = diff.value.removedClient)
+        }
+        setManyWs(context, source, diff.value.newClient).observeForever {
+            diff.value = diff.value.copy(newClient = diff.value.newClient)
         }
     }
 
@@ -154,34 +179,42 @@ fun SourceSyncOptions(
         onSyncRemoteClick()
     }
 
+    fun toSyncLocalCount(): Int =
+        diff.value.modifiedServer.size + diff.value.newServer.size + diff.value.removedServer.size
+
+    fun toSyncRemoteCount(): Int =
+        diff.value.modifiedClient.size + diff.value.newClient.size + diff.value.removedClient.size
+
+    fun toSyncBothCount(): Int = toSyncLocalCount() + toSyncRemoteCount()
+
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         when (source.actions) {
             Actions.GET -> SyncButton(
                 Actions.GET,
-                missingLocalPaths.value.size,
+                toSyncLocalCount(),
                 onClick = ::onSyncLocalClick
             )
 
             Actions.SET -> SyncButton(
                 Actions.SET,
-                missingRemotePaths.value.size,
+                toSyncRemoteCount(),
                 onClick = ::onSyncRemoteClick
             )
 
             Actions.GET_SET -> {
                 SyncButton(
                     Actions.GET,
-                    missingLocalPaths.value.size,
+                    toSyncLocalCount(),
                     onClick = ::onSyncLocalClick
                 )
                 SyncButton(
                     Actions.SET,
-                    missingRemotePaths.value.size,
+                    toSyncRemoteCount(),
                     onClick = ::onSyncRemoteClick
                 )
                 SyncButton(
                     Actions.GET_SET,
-                    missingLocalPaths.value.size + missingRemotePaths.value.size,
+                    toSyncBothCount(),
                     onClick = ::onSyncBothClick
                 )
             }

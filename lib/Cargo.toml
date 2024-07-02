@@ -8,4 +8,5 @@ axum = { version = "0.7.5", default-features = false, features = ["ws"] }
 axum-tungstenite = "0.3.0"
 eyre = "0.6.12"
 futures = "0.3.30"
+serde = { version = "1.0.203", features = ["derive"] }
 tokio-tungstenite = "0.21.0"

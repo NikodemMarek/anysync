@@ -961,6 +961,7 @@ dependencies = [
  "axum-tungstenite",
  "eyre",
  "futures",
+ "serde",
  "tokio-tungstenite 0.21.0",
 ]
 
